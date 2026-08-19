@@ -97,7 +97,7 @@
         </header>
 
         <section id="verify-panel" class="verify-panel" aria-labelledby="verify-title" hidden>
-            <h2 id="verify-title">Verificar assinaturas</h2>
+            <h2 id="verify-title" tabindex="-1">Verificar assinaturas</h2>
             <p id="verify-description" class="step-description">
                 Analise tecnicamente assinaturas digitais incorporadas a um PDF.
             </p>
@@ -125,7 +125,8 @@
                     <span id="verify-page-indicator" aria-live="polite">Página 1 de 1</span>
                     <button type="button" id="verify-next-page" aria-label="Próxima página">▶</button>
                 </div>
-                <div id="verify-canvas-container" class="canvas-wrapper verify-canvas-wrapper">
+                <div id="verify-canvas-container" class="canvas-wrapper verify-canvas-wrapper" tabindex="0"
+                    role="region" aria-label="Pré-visualização do PDF para verificação">
                     <canvas id="verify-pdf-canvas" aria-label="Pré-visualização do PDF selecionado"></canvas>
                 </div>
             </div>
@@ -139,7 +140,8 @@
 
             <button type="button" class="btn" id="verify-button">Verificar assinaturas</button>
 
-            <div id="verification-results" class="verify-results hidden" aria-live="polite" aria-atomic="false"></div>
+            <div id="verification-results" class="verify-results hidden" role="region"
+                aria-labelledby="verification-results-title"></div>
         </section>
 
         <section id="step-1" class="step active" aria-labelledby="step-1-title">
@@ -195,8 +197,9 @@
 
             <div class="canvas-wrapper" id="canvas-container" tabindex="0" role="region"
                 aria-label="Pré-visualização do documento PDF" aria-describedby="position-description">
-                <div class="pdf-stage" id="pdf-stage" role="img"
-                    aria-label="Página do documento. Clique para posicionar a assinatura.">
+                <div class="pdf-stage" id="pdf-stage" role="button" tabindex="0"
+                    aria-keyshortcuts="Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight"
+                    aria-label="Página do documento. Pressione Enter ou Espaço para posicionar no centro, use as setas para ajustar e pressione Enter novamente para continuar.">
                     <canvas id="pdf-canvas" aria-hidden="true"></canvas>
 
                     <div id="signature-box" class="sig-box" aria-hidden="true">
@@ -254,7 +257,7 @@
             </p>
 
             <div class="signature-types" role="group" aria-labelledby="step-3-title">
-                <button type="button" class="signature-type" data-signature-type="standard">
+                <button type="button" class="signature-type" data-signature-type="standard" aria-pressed="false">
                     <strong id="type-standard-title">
                         Padrão
                     </strong>
@@ -264,7 +267,7 @@
                     </span>
                 </button>
 
-                <button type="button" class="signature-type" data-signature-type="simple">
+                <button type="button" class="signature-type" data-signature-type="simple" aria-pressed="false">
                     <strong id="type-simple-title">
                         Customizada simples
                     </strong>
@@ -274,7 +277,7 @@
                     </span>
                 </button>
 
-                <button type="button" class="signature-type" data-signature-type="image">
+                <button type="button" class="signature-type" data-signature-type="image" aria-pressed="false">
                     <strong id="type-image-title">
                         Customizada com imagem
                     </strong>

@@ -16,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import pymupdf
 from PIL import Image, UnidentifiedImageError
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QAction, QColor, QFont, QIcon, QImage, QPainter, QPalette, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -656,11 +656,13 @@ class VerifyWorker(QThread):
 
 class PdfCanvas(QLabel):
     positionChanged = Signal(float, float)
+    confirmRequested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.source_pixmap = None
         self.display_scale = 1.0
         self.signature_left = None
@@ -708,6 +710,39 @@ class PdfCanvas(QLabel):
         height = STAMP_HEIGHT * self.display_scale
         position = event.position()
         self.set_signature_position(position.x() - width / 2, position.y() - height / 2)
+
+    def keyPressEvent(self, event):
+        if self.source_pixmap is None:
+            super().keyPressEvent(event)
+            return
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and self.signature_left is not None:
+            self.confirmRequested.emit()
+            event.accept()
+            return
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+            width = STAMP_WIDTH * self.display_scale
+            height = STAMP_HEIGHT * self.display_scale
+            self.set_signature_position(
+                (self.width() - width) / 2,
+                (self.height() - height) / 2,
+            )
+            event.accept()
+            return
+        movement = {
+            Qt.Key.Key_Left: (-1, 0),
+            Qt.Key.Key_Right: (1, 0),
+            Qt.Key.Key_Up: (0, -1),
+            Qt.Key.Key_Down: (0, 1),
+        }.get(event.key())
+        if movement and self.signature_left is not None and self.signature_top is not None:
+            step = (10 if event.modifiers() & Qt.KeyboardModifier.ShiftModifier else 2) * self.display_scale
+            self.set_signature_position(
+                self.signature_left + movement[0] * step,
+                self.signature_top + movement[1] * step,
+            )
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def paintEvent(self, event):
         if self.source_pixmap is None:
@@ -781,10 +816,23 @@ class PagingScrollArea(QScrollArea):
             return
         super().wheelEvent(event)
 
+    def keyPressEvent(self, event):
+        scrollbar = self.verticalScrollBar()
+        if event.key() == Qt.Key.Key_PageDown and scrollbar.value() >= scrollbar.maximum():
+            self.nextPageRequested.emit()
+            event.accept()
+            return
+        if event.key() == Qt.Key.Key_PageUp and scrollbar.value() <= scrollbar.minimum():
+            self.previousPageRequested.emit()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        QApplication.instance().installEventFilter(self)
         self.language = detectar_idioma()
         self.current_theme = None
         self.theme_override = False
@@ -822,6 +870,18 @@ class MainWindow(QMainWindow):
         self.retranslate_ui()
         self.update_signature_configuration()
         self.go_to_step(0)
+
+    def eventFilter(self, watched, event):
+        if (
+            isinstance(watched, QPushButton)
+            and event.type() == QEvent.Type.KeyPress
+            and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+        ):
+            if watched.isEnabled() and watched.isVisible() and not event.isAutoRepeat():
+                watched.click()
+            event.accept()
+            return True
+        return super().eventFilter(watched, event)
 
     def tr_text(self, key):
         return TRANSLATIONS[self.language][key]
@@ -934,6 +994,7 @@ class MainWindow(QMainWindow):
         self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.pdf_canvas = PdfCanvas()
         self.pdf_canvas.positionChanged.connect(self.visual_position_changed)
+        self.pdf_canvas.confirmRequested.connect(self.confirm_position)
         self.scroll_area.setWidget(self.pdf_canvas)
         self.scroll_area.verticalScrollBar().valueChanged.connect(self.handle_pdf_scroll)
         self.scroll_area.nextPageRequested.connect(
@@ -960,10 +1021,12 @@ class MainWindow(QMainWindow):
         self.accessible_page_spin = QSpinBox()
         self.accessible_page_spin.setMinimum(1)
         self.accessible_page_spin.setAccessibleName("Página da assinatura")
+        self.accessible_page_label.setBuddy(self.accessible_page_spin)
         accessible_layout.addRow(self.accessible_page_label, self.accessible_page_spin)
         self.accessible_position_label = QLabel()
         self.accessible_position_combo = QComboBox()
         self.accessible_position_combo.setAccessibleName("Posição da assinatura")
+        self.accessible_position_label.setBuddy(self.accessible_position_combo)
         accessible_layout.addRow(self.accessible_position_label, self.accessible_position_combo)
         self.apply_accessible_button = QPushButton()
         self.apply_accessible_button.clicked.connect(self.apply_accessible_position)
@@ -1038,6 +1101,7 @@ class MainWindow(QMainWindow):
         self.custom_title_input = QLineEdit("Assinado digitalmente por:")
         self.custom_title_input.setMaxLength(60)
         self.custom_title_input.setAccessibleName("Texto superior da assinatura")
+        self.custom_title_label.setBuddy(self.custom_title_input)
         form.addRow(self.custom_title_label, self.custom_title_input)
         self.show_date = QCheckBox()
         self.show_date.setChecked(True)
@@ -1054,6 +1118,7 @@ class MainWindow(QMainWindow):
         image_layout.setContentsMargins(0, 0, 0, 0)
         self.image_button_select = QPushButton()
         self.image_button_select.clicked.connect(self.select_image)
+        self.image_file_title.setBuddy(self.image_button_select)
         self.image_file_label = QLabel()
         self.image_file_label.setWordWrap(True)
         image_layout.addWidget(self.image_button_select)
@@ -1062,6 +1127,7 @@ class MainWindow(QMainWindow):
         self.image_mode_label = QLabel()
         self.image_mode_combo = QComboBox()
         self.image_mode_combo.currentIndexChanged.connect(self.update_image_detection)
+        self.image_mode_label.setBuddy(self.image_mode_combo)
         form.addRow(self.image_mode_label, self.image_mode_combo)
         self.image_detection_label = QLabel()
         self.image_detection_label.setWordWrap(True)
@@ -1072,6 +1138,7 @@ class MainWindow(QMainWindow):
         certificate_layout.setContentsMargins(0, 0, 0, 0)
         self.certificate_button = QPushButton()
         self.certificate_button.clicked.connect(self.select_certificate)
+        self.certificate_label.setBuddy(self.certificate_button)
         self.certificate_file_label = QLabel()
         self.certificate_file_label.setWordWrap(True)
         certificate_layout.addWidget(self.certificate_button)
@@ -1082,6 +1149,7 @@ class MainWindow(QMainWindow):
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.password_input.setMaxLength(512)
         self.password_input.setAccessibleName("Senha do certificado")
+        self.password_label.setBuddy(self.password_input)
         form.addRow(self.password_label, self.password_input)
         scroll.setWidget(content)
         root.addWidget(scroll, 1)
@@ -1168,6 +1236,7 @@ class MainWindow(QMainWindow):
         self.verify_scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.verify_pdf_canvas = QLabel()
         self.verify_pdf_canvas.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.verify_pdf_canvas.setAccessibleName("Pré-visualização do PDF para verificação")
         self.verify_scroll_area.setWidget(self.verify_pdf_canvas)
         self.verify_scroll_area.verticalScrollBar().valueChanged.connect(
             self.handle_verify_pdf_scroll
@@ -1266,15 +1335,28 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.pdf_button.setText("📄  " + tr("select_pdf"))
         self.verify_entry_button.setText("✓  " + tr("verify_signatures"))
         self.pdf_file_label.setText(f"{tr('pdf_selected')} {Path(self.pdf_path).name}" if self.pdf_path else "")
+        self.pdf_button.setAccessibleName(tr("select_pdf"))
+        self.verify_entry_button.setAccessibleName(tr("verify_signatures"))
         self.position_title.setText(tr("position_title"))
         self.position_desc.setText(tr("position_desc"))
         self.pdf_canvas.set_placeholder_text(tr("signed_by"), tr("verify_signer"))
+        self.prev_button.setAccessibleName(tr("previous"))
+        self.next_button.setAccessibleName(tr("next"))
+        self.pdf_canvas.setAccessibleName(tr("position_title"))
+        keyboard_help = (
+            "Pressione Enter ou Espaço para posicionar no centro. Use as setas para ajustar e pressione Enter novamente para continuar."
+            if self.language == "pt"
+            else "Press Enter or Space to place in the center. Use the arrow keys to adjust, then press Enter again to continue."
+        )
+        self.pdf_canvas.setAccessibleDescription(f"{tr('position_desc')} {keyboard_help}")
         self.prev_button.setText("◀ " + tr("previous"))
         self.next_button.setText(tr("next") + " ▶")
         self.accessible_toggle.setText(tr("show_accessible_position"))
         self.accessible_title.setText(tr("accessible_position"))
         self.accessible_page_label.setText(tr("accessible_page"))
         self.accessible_position_label.setText(tr("accessible_location"))
+        self.accessible_page_spin.setAccessibleName(tr("accessible_page").rstrip(":"))
+        self.accessible_position_combo.setAccessibleName(tr("accessible_location").rstrip(":"))
         selected_accessible_mode = self.accessible_position_combo.currentData()
         self.accessible_position_combo.blockSignals(True)
         self.accessible_position_combo.clear()
@@ -1318,6 +1400,8 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.certificate_button.setText(tr("select_certificate"))
         self.certificate_file_label.setText(Path(self.certificate_path).name if self.certificate_path else tr("no_certificate"))
         self.password_label.setText(tr("password"))
+        self.custom_title_input.setAccessibleName(tr("custom_title").rstrip(":"))
+        self.password_input.setAccessibleName(tr("password").rstrip(":"))
         self.password_input.setAccessibleDescription(tr("password_accessible"))
         self.configuration_back_button.setText(tr("back"))
         self.sign_button.setText(tr("sign"))
@@ -1331,6 +1415,10 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.verify_online_checkbox.setText(tr("verify_online"))
         self.verify_select_button.setText(tr("verify_select"))
         self.verify_back_button.setText(tr("verify_back"))
+        self.verify_prev_button.setAccessibleName(tr("previous"))
+        self.verify_next_button.setAccessibleName(tr("next"))
+        self.verify_pdf_canvas.setAccessibleName(tr("verify_desc"))
+        self.verify_results.setAccessibleName(tr("verify_signatures"))
         self.update_configuration_description()
         self.statusBar().showMessage(tr("ready"))
         self.update_step_label()
@@ -1348,8 +1436,24 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
     def go_to_step(self, index):
         self.stack.setCurrentIndex(index)
         self.update_step_label()
+        self.statusBar().showMessage(self.step_label.text())
         if index == 1:
             self.render_current_page()
+        QTimer.singleShot(0, self.focus_current_step)
+
+    def focus_current_step(self):
+        index = self.stack.currentIndex()
+        targets = {
+            0: self.pdf_button,
+            1: self.pdf_canvas,
+            2: self.standard_button,
+            3: self.custom_title_input if self.custom_title_input.isVisible() else self.certificate_button,
+            4: self.open_folder_button,
+            5: self.verify_select_button,
+        }
+        target = targets.get(index)
+        if target and target.isVisible() and target.isEnabled():
+            target.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def select_pdf_to_verify(self):
         caminho, _ = QFileDialog.getOpenFileName(
@@ -1402,6 +1506,7 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.verify_back_button.setEnabled(True)
         self.statusBar().showMessage(self.tr_text("ready"))
         self.render_verification_result(result)
+        QTimer.singleShot(0, self.verify_results.setFocus)
 
     def verification_failed(self, message):
         self.worker = None
@@ -1409,6 +1514,7 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.verify_back_button.setEnabled(True)
         self.statusBar().showMessage(self.tr_text("ready"))
         self.verify_results.setPlainText(message)
+        self.verify_results.setFocus()
         QMessageBox.warning(self, self.tr_text("error"), message)
 
     def _verification_value(self, value, positive, negative):
@@ -1541,6 +1647,7 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
             .replace("{current}", str(self.verify_current_page + 1))
             .replace("{total}", str(self.verify_total_pages))
         )
+        self.verify_pdf_canvas.setAccessibleDescription(self.verify_page_label.text())
         self.verify_prev_button.setEnabled(self.verify_current_page > 0)
         self.verify_next_button.setEnabled(
             self.verify_current_page < self.verify_total_pages - 1
@@ -1684,6 +1791,14 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
             return
         self.page_label.setText(
             self.tr_text("page").replace("{current}", str(self.current_page + 1)).replace("{total}", str(self.total_pages))
+        )
+        self.pdf_canvas.setAccessibleDescription(
+            f"{self.position_desc.text()} {self.page_label.text()} "
+            + (
+                "Pressione Enter ou Espaço para posicionar no centro, use as setas para ajustar e pressione Enter novamente para continuar."
+                if self.language == "pt"
+                else "Press Enter or Space to place in the center, use the arrow keys to adjust, then press Enter again to continue."
+            )
         )
         self.prev_button.setEnabled(self.current_page > 0)
         self.next_button.setEnabled(self.current_page < self.total_pages - 1)

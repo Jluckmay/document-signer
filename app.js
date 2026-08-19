@@ -84,14 +84,14 @@ const translations = {
 
         step2Title: "Posicionamento da assinatura",
         positionDescription:
-            "Clique na página onde deseja posicionar a assinatura. Ao chegar ao final da página, a próxima página será exibida automaticamente.",
+            "Clique na página ou pressione Enter ou Espaço para posicionar a assinatura. Use as setas para ajustar. Ao chegar ao final da página, a próxima será exibida automaticamente.",
 
         previousPage: "Página anterior",
         nextPage: "Próxima página",
         pagination: "Navegação entre páginas",
         pdfPreview: "Pré-visualização do documento PDF",
         pdfPage:
-            "Página do documento. Clique para posicionar a assinatura.",
+            "Página do documento. Pressione Enter ou Espaço para posicionar no centro, use as setas para ajustar e pressione Enter novamente para continuar.",
 
         page: "Página {current} de {total}",
         cancel: "Cancelar",
@@ -370,7 +370,7 @@ const translations = {
         step2Title: "Signature placement",
 
         positionDescription:
-            "Click on the page where you want to position the signature. When you reach the bottom of the page, the next page will be displayed automatically.",
+            "Click the page or press Enter or Space to place the signature. Use the arrow keys to adjust. At the bottom, the next page is displayed automatically.",
 
         previousPage: "Previous page",
         nextPage: "Next page",
@@ -378,7 +378,7 @@ const translations = {
         pdfPreview: "PDF document preview",
 
         pdfPage:
-            "Document page. Click to position the signature.",
+            "Document page. Press Enter or Space to place in the center, use the arrow keys to adjust, then press Enter again to continue.",
 
         page: "Page {current} of {total}",
         cancel: "Cancel",
@@ -992,6 +992,9 @@ function applyTranslations() {
     setText("verify-help", tr.verifyHelp);
     setText("verify-revocation-label", tr.verifyRevocation);
     setText("verify-button", tr.verifyButton);
+    setAriaLabel("verify-prev-page", tr.previousPage);
+    setAriaLabel("verify-next-page", tr.nextPage);
+    setAriaLabel("verify-canvas-container", tr.pdfPreview);
 
     updateStepSubtitle();
     updatePagination();
@@ -1192,6 +1195,9 @@ function setApplicationMode(mode) {
             });
         resetVerification();
         updateVerifySubtitle();
+        window.requestAnimationFrame(() => {
+            document.getElementById("verify-title")?.focus({ preventScroll: true });
+        });
         wakeBackend();
     }
 }
@@ -1807,6 +1813,7 @@ async function changePage(offset) {
                     container.clientHeight
                 );
         }
+        container.dataset.previousScrollTop = String(container.scrollTop);
     }
 
     announce(
@@ -2260,10 +2267,15 @@ function confirmPosition() {
 function handlePdfStageKeydown(
     event
 ) {
-    if (
-        event.key !== "Enter" &&
-        event.key !== " "
-    ) {
+    const placementKeys = ["Enter", " "];
+    const movement = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1]
+    };
+
+    if (!placementKeys.includes(event.key) && !movement[event.key]) {
         return;
     }
 
@@ -2281,6 +2293,34 @@ function handlePdfStageKeydown(
     const rect =
         stage.getBoundingClientRect();
 
+    if (
+        (event.key === "Enter") &&
+        signaturePos.placed &&
+        signaturePos.page === currentPageNum
+    ) {
+        confirmPosition();
+        return;
+    }
+
+    if (movement[event.key] && signaturePos.placed && signaturePos.page === currentPageNum) {
+        const box = document.getElementById("signature-box");
+        if (!box) return;
+        const step = event.shiftKey ? 10 : 2;
+        const [horizontal, vertical] = movement[event.key];
+        const maxLeft = Math.max(0, rect.width - box.offsetWidth);
+        const maxTop = Math.max(0, rect.height - box.offsetHeight);
+        signaturePos.x = Math.max(0, Math.min(maxLeft, signaturePos.x + horizontal * step));
+        signaturePos.y = Math.max(0, Math.min(maxTop, signaturePos.y + vertical * step));
+        signaturePos.canvasRectWidth = rect.width;
+        signaturePos.canvasRectHeight = rect.height;
+        box.style.left = `${signaturePos.x}px`;
+        box.style.top = `${signaturePos.y}px`;
+        announce(t().positionSet.replace("{page}", currentPageNum));
+        return;
+    }
+
+    if (!placementKeys.includes(event.key)) return;
+
     placeSignature({
         type: "keyboard",
         clientX:
@@ -2290,6 +2330,30 @@ function handlePdfStageKeydown(
             rect.top +
             rect.height / 2
     });
+}
+
+function handlePdfPreviewKeydown(event) {
+    const forward = event.key === "PageDown" || event.key === "ArrowDown";
+    const backward = event.key === "PageUp" || event.key === "ArrowUp";
+    if (!pdfJsDoc || (!forward && !backward)) {
+        return;
+    }
+    if (scrollPageLock) {
+        event.preventDefault();
+        return;
+    }
+    const container = event.currentTarget;
+    const atTop = container.scrollTop <= 8;
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 8;
+    if (forward && atBottom && currentPageNum < totalPages) {
+        event.preventDefault();
+        if (event.repeat) return;
+        changePage(1);
+    } else if (backward && atTop && currentPageNum > 1) {
+        event.preventDefault();
+        if (event.repeat) return;
+        changePage(-1);
+    }
 }
 
 /* ==========================================
@@ -3750,6 +3814,33 @@ function handleVerificationWheel(event) {
     }
 }
 
+function handleVerificationPreviewKeydown(event) {
+    const forward = event.key === "PageDown" || event.key === "ArrowDown";
+    const backward = event.key === "PageUp" || event.key === "ArrowUp";
+    if (!verificationPdfDoc || (!forward && !backward)) {
+        return;
+    }
+    if (verificationScrollPageLock) {
+        event.preventDefault();
+        return;
+    }
+    const container = event.currentTarget;
+    const atTop = container.scrollTop <= 8;
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 8;
+    if (
+        forward && atBottom &&
+        verificationPageNum < verificationPdfDoc.numPages
+    ) {
+        event.preventDefault();
+        if (event.repeat) return;
+        changeVerificationPage(1);
+    } else if (backward && atTop && verificationPageNum > 1) {
+        event.preventDefault();
+        if (event.repeat) return;
+        changeVerificationPage(-1);
+    }
+}
+
 function clearVerificationPreview() {
     verificationRenderToken += 1;
     verificationPdfDoc = null;
@@ -4069,6 +4160,8 @@ function renderVerificationResults(data) {
 
     heading.className =
         "verification-results-title";
+    heading.id = "verification-results-title";
+    heading.tabIndex = -1;
 
     heading.textContent =
         signatures.length === 0
@@ -4090,6 +4183,7 @@ function renderVerificationResults(data) {
             data
         );
 
+        heading.focus({ preventScroll: true });
         return;
     }
 
@@ -4111,6 +4205,7 @@ function renderVerificationResults(data) {
         container,
         data
     );
+    heading.focus({ preventScroll: true });
 }
 
 /* ==========================================
@@ -5561,6 +5656,7 @@ function bindEvents() {
     canvasContainer?.addEventListener("wheel", handlePdfWheel, {
         passive: false
     });
+    canvasContainer?.addEventListener("keydown", handlePdfPreviewKeydown);
 
     verifyPreviousButton?.addEventListener(
         "click",
@@ -5579,6 +5675,7 @@ function bindEvents() {
     verifyCanvasContainer?.addEventListener("wheel", handleVerificationWheel, {
         passive: false
     });
+    verifyCanvasContainer?.addEventListener("keydown", handleVerificationPreviewKeydown);
 
     window.addEventListener(
         "resize",
