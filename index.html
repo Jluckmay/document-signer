@@ -1,755 +1,595 @@
 <!DOCTYPE html>
 <html lang="pt-BR" id="html-root">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assinador Digital | Digital Signer</title>
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%232563EB'/%3E%3Cpath d='M18 32 L27 41 L47 20' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-    </script>
-
-    <style>
-        :root {
-            color-scheme: light;
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --success: #10b981;
-            --error: #ef4444;
-            --focus-ring: rgba(37, 99, 235, .45);
-            --canvas-bg: #e2e8f0;
-        }
-
-        html.dark-theme {
-            color-scheme: dark;
-            --primary: #3b82f6;
-            --primary-hover: #60a5fa;
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --success: #10b981;
-            --error: #f87171;
-            --focus-ring: rgba(59, 130, 246, .5);
-            --canvas-bg: #0f172a;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            padding: 20px;
-            background: var(--bg-color);
-            color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            transition: background-color .25s, color .25s;
-        }
-
-        button,
-        input,
-        select {
-            font: inherit;
-        }
-
-        button,
-        label,
-        select,
-        input[type="file"],
-        input[type="checkbox"] {
-            cursor: pointer;
-        }
-
-        :focus-visible {
-            outline: 3px solid var(--focus-ring);
-            outline-offset: 3px;
-        }
-
-        .sr-only {
-            position: absolute !important;
-            width: 1px !important;
-            height: 1px !important;
-            padding: 0 !important;
-            margin: -1px !important;
-            overflow: hidden !important;
-            clip: rect(0, 0, 0, 0) !important;
-            white-space: nowrap !important;
-            border: 0 !important;
-        }
-
-        .skip-link {
-            position: fixed;
-            top: -100px;
-            left: 20px;
-            z-index: 10000;
-            padding: 10px 15px;
-            background: var(--primary);
-            color: white;
-            border-radius: 8px;
-            text-decoration: none;
-        }
-
-        .skip-link:focus {
-            top: 20px;
-        }
-
-        .top-controls {
-            width: 100%;
-            max-width: 1100px;
-            margin: 0 auto 20px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-
-        .icon-btn {
-            padding: 8px 12px;
-            background: var(--card-bg);
-            color: var(--text-main);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-        }
-
-        .icon-btn:hover {
-            border-color: var(--primary);
-        }
-
-        .container {
-            width: 100%;
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 40px;
-            background: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, .05);
-        }
-
-        .header {
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 1.6rem;
-        }
-
-        .header p {
-            margin: 6px 0 0;
-            color: var(--text-muted);
-        }
-
-        .step {
-            display: none;
-        }
-
-        .step.active {
-            display: block;
-        }
-
-        .step-description {
-            margin: 0 0 20px;
-            color: var(--text-muted);
-        }
-
-        .upload-area {
-            min-height: 180px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 30px;
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            text-align: center;
-            transition: .2s;
-        }
-
-        .upload-area:hover {
-            border-color: var(--primary);
-        }
-
-        .upload-area input {
-            display: none;
-        }
-
-        .upload-icon {
-            font-size: 2.5rem;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 12px;
-            border: 0;
-            border-radius: 8px;
-            background: var(--primary);
-            color: white;
-            font-weight: 600;
-        }
-
-        .btn:hover {
-            background: var(--primary-hover);
-        }
-
-        .btn:disabled {
-            opacity: .55;
-            cursor: not-allowed;
-        }
-
-        .btn-outline {
-            background: transparent;
-            color: var(--text-main);
-            border: 1px solid var(--border);
-        }
-
-        .btn-outline:hover {
-            background: var(--bg-color);
-        }
-
-        .btn-success {
-            background: var(--success);
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .btn-group .btn {
-            flex: 1;
-        }
-
-        .pagination {
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .pagination button {
-            padding: 7px 16px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--card-bg);
-            color: var(--text-main);
-        }
-
-        .pagination button:disabled {
-            opacity: .4;
-            cursor: not-allowed;
-        }
-
-        .canvas-wrapper {
-            width: 100%;
-            max-height: 70vh;
-            overflow: auto;
-            padding: 10px;
-            background: var(--canvas-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .pdf-stage {
-            position: relative;
-            display: inline-block;
-            line-height: 0;
-            cursor: crosshair;
-            user-select: none;
-        }
-
-        #pdf-canvas {
-            display: block;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, .12);
-        }
-
-        .sig-box {
-            position: absolute;
-            width: 240px;
-            height: 68px;
-            display: none;
-            overflow: hidden;
-            pointer-events: none;
-            background: white;
-            border: 2px dashed var(--primary);
-            color: #1e293b;
-            line-height: normal;
-        }
-
-        .standard-preview {
-            width: 100%;
-            height: 100%;
-            display: flex;
-        }
-
-        .preview-logo {
-            width: 23%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-right: 1px solid #e2e8f0;
-        }
-
-        .default-icon {
-            width: 28px;
-            height: 28px;
-            position: relative;
-            border-radius: 50%;
-            background: var(--primary);
-        }
-
-        .default-icon::after {
-            content: "✓";
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 17px;
-            font-weight: bold;
-        }
-
-        .preview-logo img {
-            max-width: 90%;
-            max-height: 85%;
-            object-fit: contain;
-        }
-
-        .preview-text {
-            flex: 1;
-            padding: 6px 7px;
-            text-align: left;
-            font-size: 7px;
-            line-height: 1.3;
-        }
-
-        .full-preview {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            display: none;
-            background: white;
-        }
-
-        .full-preview-image-area {
-            position: absolute;
-            top: 2px;
-            right: 3px;
-            bottom: 11px;
-            left: 3px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .full-preview-image-area img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .full-preview-date {
-            position: absolute;
-            right: 4px;
-            bottom: 0;
-            left: 4px;
-            height: 11px;
-            padding-right: 2px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            border-top: 1px solid #e2e8f0;
-            color: #475569;
-            font-size: 5.5px;
-        }
-
-        .signature-types {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-
-        .signature-type {
-            min-height: 135px;
-            padding: 18px;
-            text-align: left;
-            background: var(--card-bg);
-            color: var(--text-main);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-        }
-
-        .signature-type:hover {
-            border-color: var(--primary);
-        }
-
-        .signature-type strong {
-            display: block;
-            margin-bottom: 8px;
-        }
-
-        .signature-type span {
-            color: var(--text-muted);
-            font-size: .85rem;
-        }
-
-        .input-group {
-            margin-bottom: 16px;
-        }
-
-        .input-group>label,
-        .group-label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: .9rem;
-            font-weight: 600;
-        }
-
-        .input-group input:not([type="checkbox"]),
-        .input-group select {
-            width: 100%;
-            padding: 10px;
-            background: var(--card-bg);
-            color: var(--text-main);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-        }
-
-        .checkbox-label {
-            display: flex !important;
-            align-items: center;
-            gap: 8px;
-            font-weight: 400 !important;
-        }
-
-        .checkbox-label input {
-            width: auto;
-        }
-
-        .help {
-            margin: 5px 0 0;
-            color: var(--text-muted);
-            font-size: .78rem;
-        }
-
-        .alert {
-            display: none;
-            margin-top: 10px;
-            color: var(--error);
-            font-size: .88rem;
-        }
-
-        .visual-options {
-            margin-bottom: 25px;
-            padding: 18px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-        }
-
-        .visual-options h3 {
-            margin-top: 0;
-        }
-
-        .image-info {
-            display: none;
-            margin-top: 10px;
-            padding: 10px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-muted);
-            font-size: .82rem;
-        }
-
-        @media (max-width: 760px) {
-            body {
-                padding: 10px;
-            }
-
-            .container {
-                padding: 20px;
-            }
-
-            .signature-types {
-                grid-template-columns: 1fr;
-            }
-
-            .btn-group {
-                flex-direction: column;
-            }
-        }
-    </style>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="referrer"
+        content="no-referrer"
+    >
+
+    <meta
+        http-equiv="Content-Security-Policy"
+        content="
+            default-src 'self';
+            script-src 'self';
+            style-src 'self';
+            img-src 'self' blob: data:;
+            worker-src 'self' blob:;
+            connect-src 'self'
+                http://127.0.0.1:5000
+                http://localhost:5000
+                https://seu-projeto-backend.onrender.com;
+            object-src 'none';
+            base-uri 'none';
+            form-action 'self';
+            manifest-src 'self';
+        "
+    >
+
+    <title>
+        Assinador Digital
+    </title>
+
+    <link
+        rel="icon"
+        type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%232563EB'/%3E%3Cpath d='M18 32 L27 41 L47 20' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    >
+
+    <link
+        rel="stylesheet"
+        href="./styles.css"
+    >
+
+    <script
+        defer
+        src="./vendor/pdfjs/pdf.min.js"
+    ></script>
+
+    <script
+        defer
+        src="./app.js"
+    ></script>
 </head>
 
 <body>
-    <a class="skip-link" href="#main-content" id="skip-link">
+    <a
+        class="skip-link"
+        href="#main-content"
+        id="skip-link"
+    >
         Pular para o conteúdo principal
     </a>
 
-    <div id="screen-reader-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+    <div
+        id="screen-reader-announcer"
+        class="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+    ></div>
 
-    <div id="screen-reader-alert" class="sr-only" role="alert" aria-live="assertive" aria-atomic="true"></div>
+    <div
+        id="screen-reader-alert"
+        class="sr-only"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+    ></div>
 
-    <nav class="top-controls" aria-label="Preferências da página">
-        <button type="button" class="icon-btn" id="theme-button" onclick="toggleTheme()" aria-label="Alternar tema">
-            <span aria-hidden="true" id="theme-icon">🌓</span>
-            <span class="sr-only" id="theme-text">Alternar tema</span>
+    <nav
+        class="top-controls"
+        aria-label="Preferências da página"
+    >
+        <button
+            type="button"
+            class="icon-btn"
+            id="theme-button"
+            aria-label="Alternar tema"
+        >
+            <span
+                aria-hidden="true"
+            >
+                🌓
+            </span>
+
+            <span
+                class="sr-only"
+                id="theme-text"
+            >
+                Alternar tema
+            </span>
         </button>
 
-        <button type="button" class="icon-btn" onclick="toggleLanguage()" id="language-button"
-            aria-label="Change language to English">
-            <span aria-hidden="true">🌐</span>
-            <span id="language-label">EN</span>
+        <button
+            type="button"
+            class="icon-btn"
+            id="language-button"
+            aria-label="Mudar idioma para inglês"
+        >
+            <span
+                aria-hidden="true"
+            >
+                🌐
+            </span>
+
+            <span id="language-label">
+                EN
+            </span>
         </button>
     </nav>
 
-    <main class="container" id="main-content" tabindex="-1">
+    <main
+        class="container"
+        id="main-content"
+        tabindex="-1"
+    >
         <header class="header">
-            <h1 id="title">Assinador Digital</h1>
-            <p id="subtitle" aria-live="polite">Etapa 1 de 5: Envio do documento</p>
+            <h1 id="title">
+                Assinador Digital
+            </h1>
+
+            <p
+                id="subtitle"
+                aria-live="polite"
+            >
+                Etapa 1 de 5:
+                Envio do documento
+            </p>
         </header>
 
-        <section id="step-1" class="step active" aria-labelledby="step-1-title">
-            <h2 id="step-1-title" class="sr-only">
+        <section
+            id="step-1"
+            class="step active"
+            aria-labelledby="step-1-title"
+        >
+            <h2
+                id="step-1-title"
+                class="sr-only"
+            >
                 Envio do documento
             </h2>
 
-            <label class="upload-area" for="fileInput">
-                <span class="upload-icon" aria-hidden="true">📄</span>
-                <strong id="upload-title">Clique para selecionar o documento</strong>
-                <span id="upload-description">ou escolha um arquivo PDF</span>
+            <label
+                class="upload-area"
+                for="fileInput"
+            >
+                <span
+                    class="upload-icon"
+                    aria-hidden="true"
+                >
+                    📄
+                </span>
 
-                <input type="file" id="fileInput" accept="application/pdf,.pdf" onchange="handleFileUpload(event)"
-                    aria-describedby="pdf-help error-pdf">
+                <strong id="upload-title">
+                    Clique para selecionar
+                    o documento
+                </strong>
+
+                <span id="upload-description">
+                    ou escolha um arquivo PDF
+                </span>
+
+                <input
+                    type="file"
+                    id="fileInput"
+                    accept="application/pdf,.pdf"
+                    aria-describedby="pdf-help error-pdf"
+                >
             </label>
 
-            <p class="help" id="pdf-help">
+            <p
+                class="help"
+                id="pdf-help"
+            >
                 Apenas arquivos PDF.
             </p>
 
-            <p id="error-pdf" class="alert" role="alert"></p>
+            <p
+                id="error-pdf"
+                class="alert"
+                role="alert"
+            ></p>
         </section>
 
-        <section id="step-2" class="step" aria-labelledby="step-2-title">
-            <h2 id="step-2-title" class="sr-only">
+        <section
+            id="step-2"
+            class="step"
+            aria-labelledby="step-2-title"
+        >
+            <h2
+                id="step-2-title"
+                class="sr-only"
+            >
                 Posicionamento da assinatura
             </h2>
 
-            <p id="position-description" class="step-description">
-                Clique na página onde deseja posicionar a assinatura.
-                Ao chegar ao final da página com a barra de rolagem, a próxima página será exibida automaticamente.
+            <p
+                id="position-description"
+                class="step-description"
+            >
+                Clique na página onde deseja
+                posicionar a assinatura.
             </p>
 
-            <div class="pagination" aria-label="Navegação entre páginas">
-                <button type="button" onclick="changePage(-1)" id="prev-page" aria-label="Página anterior">
+            <div
+                class="pagination"
+                aria-label="Navegação entre páginas"
+            >
+                <button
+                    type="button"
+                    id="prev-page"
+                    aria-label="Página anterior"
+                >
                     ◀
                 </button>
 
-                <span id="page-indicator" aria-live="polite">
+                <span
+                    id="page-indicator"
+                    aria-live="polite"
+                >
                     Página 1
                 </span>
 
-                <button type="button" onclick="changePage(1)" id="next-page" aria-label="Próxima página">
+                <button
+                    type="button"
+                    id="next-page"
+                    aria-label="Próxima página"
+                >
                     ▶
                 </button>
             </div>
 
-            <div class="canvas-wrapper" id="canvas-container" tabindex="0" role="region"
-                aria-label="Pré-visualização do documento PDF" aria-describedby="position-description">
-                <div class="pdf-stage" id="pdf-stage" onclick="placeSignature(event)" role="img"
-                    aria-label="Página do documento. Clique para posicionar a assinatura.">
-                    <canvas id="pdf-canvas" aria-hidden="true"></canvas>
+            <div
+                class="canvas-wrapper"
+                id="canvas-container"
+                tabindex="0"
+                role="region"
+                aria-label="Pré-visualização do documento PDF"
+            >
+                <div
+                    class="pdf-stage"
+                    id="pdf-stage"
+                    role="img"
+                    aria-label="Página do documento"
+                >
+                    <canvas
+                        id="pdf-canvas"
+                        aria-hidden="true"
+                    ></canvas>
 
-                    <div id="signature-box" class="sig-box" aria-hidden="true">
-                        <div id="standard-preview" class="standard-preview">
-                            <div id="preview-logo" class="preview-logo">
-                                <div class="default-icon"></div>
+                    <div
+                        id="signature-box"
+                        class="sig-box"
+                        aria-hidden="true"
+                    >
+                        <div
+                            id="standard-preview"
+                            class="standard-preview"
+                        >
+                            <div
+                                id="preview-logo"
+                                class="preview-logo"
+                            >
+                                <div
+                                    class="default-icon"
+                                ></div>
                             </div>
 
-                            <div id="preview-text" class="preview-text">
-                                <strong>Assinado digitalmente por</strong><br>
-                                Nome do titular<br>
-                                <small>Data da assinatura</small>
+                            <div
+                                id="preview-text"
+                                class="preview-text"
+                            >
+                                <strong>
+                                    Assinado digitalmente por
+                                </strong>
+
+                                <br>
+
+                                Nome do titular
+
+                                <br>
+
+                                <small>
+                                    Data da assinatura
+                                </small>
                             </div>
                         </div>
 
-                        <div id="full-preview" class="full-preview">
-                            <div class="full-preview-image-area">
-                                <img id="full-preview-image" alt="">
+                        <div
+                            id="full-preview"
+                            class="full-preview"
+                        >
+                            <div
+                                class="full-preview-image-area"
+                            >
+                                <img
+                                    id="full-preview-image"
+                                    alt=""
+                                >
                             </div>
 
-                            <div id="full-preview-date" class="full-preview-date">
-                                Data da assinatura
-                            </div>
+                            <div
+                                id="full-preview-date"
+                                class="full-preview-date"
+                            ></div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="btn-group">
-                <button type="button" class="btn btn-outline" onclick="resetApp()" id="cancel-button">
+                <button
+                    type="button"
+                    class="btn btn-outline"
+                    id="cancel-button"
+                >
                     Cancelar
                 </button>
 
-                <button type="button" class="btn" onclick="confirmPosition()" id="confirm-position-button">
+                <button
+                    type="button"
+                    class="btn"
+                    id="confirm-position-button"
+                >
                     Confirmar posição
                 </button>
             </div>
         </section>
 
-        <section id="step-3" class="step" aria-labelledby="step-3-title">
+        <section
+            id="step-3"
+            class="step"
+            aria-labelledby="step-3-title"
+        >
             <h2 id="step-3-title">
-                Qual tipo de assinatura deseja utilizar?
+                Qual tipo de assinatura
+                deseja utilizar?
             </h2>
 
-            <p id="signature-type-description" class="step-description">
-                Escolha apenas a aparência visual. Todas as opções continuam utilizando o certificado digital.
+            <p
+                id="signature-type-description"
+                class="step-description"
+            >
+                Escolha a aparência visual.
             </p>
 
-            <div class="signature-types" role="group" aria-labelledby="step-3-title">
-                <button type="button" class="signature-type" onclick="selectSignatureType('standard')">
-                    <strong id="type-standard-title">
+            <div
+                class="signature-types"
+                role="group"
+                aria-labelledby="step-3-title"
+            >
+                <button
+                    type="button"
+                    class="signature-type"
+                    data-signature-type="standard"
+                >
+                    <strong
+                        id="type-standard-title"
+                    >
                         Padrão
                     </strong>
-                    <span id="type-standard-description">
-                        Usa a identidade visual padrão do assinador com nome, data e informação PAdES.
+
+                    <span
+                        id="type-standard-description"
+                    >
+                        Identidade visual padrão.
                     </span>
                 </button>
 
-                <button type="button" class="signature-type" onclick="selectSignatureType('simple')">
-                    <strong id="type-simple-title">
+                <button
+                    type="button"
+                    class="signature-type"
+                    data-signature-type="simple"
+                >
+                    <strong
+                        id="type-simple-title"
+                    >
                         Customizada simples
                     </strong>
-                    <span id="type-simple-description">
-                        Permite personalizar o texto e escolher as informações mostradas.
+
+                    <span
+                        id="type-simple-description"
+                    >
+                        Personalize o texto.
                     </span>
                 </button>
 
-                <button type="button" class="signature-type" onclick="selectSignatureType('image')">
-                    <strong id="type-image-title">
+                <button
+                    type="button"
+                    class="signature-type"
+                    data-signature-type="image"
+                >
+                    <strong
+                        id="type-image-title"
+                    >
                         Customizada com imagem
                     </strong>
-                    <span id="type-image-description">
-                        Permite usar logotipo ou uma imagem completa de assinatura.
+
+                    <span
+                        id="type-image-description"
+                    >
+                        Utilize uma imagem
+                        personalizada.
                     </span>
                 </button>
             </div>
 
-            <button type="button" class="btn btn-outline" onclick="goToStep(2)" id="back-type-button">
+            <button
+                type="button"
+                class="btn btn-outline"
+                id="back-type-button"
+            >
                 Voltar
             </button>
         </section>
 
-        <section id="step-4" class="step" aria-labelledby="step-4-title">
+        <section
+            id="step-4"
+            class="step"
+            aria-labelledby="step-4-title"
+        >
             <h2 id="step-4-title">
                 Configurar assinatura
             </h2>
 
-            <p id="step-4-description" class="step-description">
-                Configure a aparência e informe seu certificado digital.
+            <p
+                id="step-4-description"
+                class="step-description"
+            >
+                Configure a aparência e
+                informe seu certificado.
             </p>
 
-            <div id="simple-options" class="visual-options" style="display:none;">
+            <div
+                id="simple-options"
+                class="visual-options hidden"
+            >
                 <h3 id="simple-options-title">
                     Aparência personalizada
                 </h3>
 
                 <div class="input-group">
-                    <label for="customTitle" id="custom-title-label">
+                    <label
+                        for="customTitle"
+                        id="custom-title-label"
+                    >
                         Texto superior:
                     </label>
 
-                    <input type="text" id="customTitle" maxlength="60" value="Assinado digitalmente por"
-                        oninput="updateSignaturePreview()">
+                    <input
+                        type="text"
+                        id="customTitle"
+                        maxlength="60"
+                        value="Assinado digitalmente por"
+                    >
                 </div>
             </div>
 
-            <div id="image-options" class="visual-options" style="display:none;">
+            <div
+                id="image-options"
+                class="visual-options hidden"
+            >
                 <h3 id="image-options-title">
                     Imagem personalizada
                 </h3>
 
                 <div class="input-group">
-                    <label for="signatureImage" id="image-label">
+                    <label
+                        for="signatureImage"
+                        id="image-label"
+                    >
                         Imagem:
                     </label>
 
-                    <input type="file" id="signatureImage" accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-                        onchange="handleSignatureImage(event)" aria-describedby="image-help imageInfo">
+                    <input
+                        type="file"
+                        id="signatureImage"
+                        accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                        aria-describedby="image-help imageInfo"
+                    >
 
-                    <p class="help" id="image-help">
-                        PNG ou JPEG, até 2 MB.
+                    <p
+                        class="help"
+                        id="image-help"
+                    >
+                        PNG ou JPEG,
+                        até 2 MB.
                     </p>
                 </div>
 
                 <div class="input-group">
-                    <label for="imageMode" id="image-mode-label">
+                    <label
+                        for="imageMode"
+                        id="image-mode-label"
+                    >
                         Tratamento da imagem:
                     </label>
 
-                    <select id="imageMode" onchange="updateImageMode()">
-                        <option value="auto" id="image-mode-auto">
+                    <select id="imageMode">
+                        <option
+                            value="auto"
+                            id="image-mode-auto"
+                        >
                             Detectar automaticamente
                         </option>
 
-                        <option value="full" id="image-mode-full">
+                        <option
+                            value="full"
+                            id="image-mode-full"
+                        >
                             Assinatura completa
                         </option>
 
-                        <option value="logo" id="image-mode-logo">
+                        <option
+                            value="logo"
+                            id="image-mode-logo"
+                        >
                             Logotipo / imagem lateral
                         </option>
                     </select>
                 </div>
 
-                <div id="imageInfo" class="image-info" aria-live="polite">
-                    <strong id="imageModeResult"></strong><br>
-                    <span id="imageDimensions"></span>
+                <div
+                    id="imageInfo"
+                    class="image-info hidden"
+                    aria-live="polite"
+                >
+                    <strong
+                        id="imageModeResult"
+                    ></strong>
+
+                    <br>
+
+                    <span
+                        id="imageDimensions"
+                    ></span>
                 </div>
             </div>
 
             <fieldset class="visual-options">
-                <legend class="group-label" id="visible-data-title">
+                <legend
+                    class="group-label"
+                    id="visible-data-title"
+                >
                     Informações exibidas
                 </legend>
 
                 <label class="checkbox-label">
-                    <input type="checkbox" id="showDate" checked onchange="updateSignaturePreview()">
+                    <input
+                        type="checkbox"
+                        id="showDate"
+                        checked
+                    >
+
                     <span id="show-date-label">
                         Mostrar data
                     </span>
                 </label>
 
-                <label class="checkbox-label" style="margin-top:10px;">
-                    <input type="checkbox" id="showTime" onchange="updateSignaturePreview()">
+                <label class="checkbox-label">
+                    <input
+                        type="checkbox"
+                        id="showTime"
+                    >
+
                     <span id="show-time-label">
                         Mostrar hora
                     </span>
                 </label>
 
-                <label class="checkbox-label" id="show-type-wrapper" style="margin-top:10px;">
-                    <input type="checkbox" id="showType" checked onchange="updateSignaturePreview()">
+                <label class="checkbox-label">
+                    <input
+                        type="checkbox"
+                        id="showType"
+                        checked
+                    >
+
                     <span id="show-type-label">
                         Mostrar “Assinatura digital PAdES”
                     </span>
@@ -757,40 +597,73 @@
             </fieldset>
 
             <div class="input-group">
-                <label for="p12Input" id="certificate-label">
+                <label
+                    for="p12Input"
+                    id="certificate-label"
+                >
                     Certificado (.p12 / .pfx):
                 </label>
 
-                <input type="file" id="p12Input" accept=".p12,.pfx" aria-describedby="certificate-help error-sign">
-
-                <p id="certificate-help" class="help">
-                    O certificado é utilizado para criar a assinatura digital do PDF.
-                </p>
+                <input
+                    type="file"
+                    id="p12Input"
+                    accept=".p12,.pfx"
+                    autocomplete="off"
+                >
             </div>
 
             <div class="input-group">
-                <label for="p12Password" id="password-label">
+                <label
+                    for="p12Password"
+                    id="password-label"
+                >
                     Senha do certificado:
                 </label>
 
-                <input type="password" id="p12Password" autocomplete="current-password" aria-describedby="error-sign">
+                <input
+                    type="password"
+                    id="p12Password"
+                    autocomplete="off"
+                    maxlength="512"
+                    autocapitalize="off"
+                    spellcheck="false"
+                >
             </div>
 
-            <p id="error-sign" class="alert" role="alert"></p>
+            <p
+                id="error-sign"
+                class="alert"
+                role="alert"
+            ></p>
 
             <div class="btn-group">
-                <button type="button" class="btn btn-outline" onclick="goToStep(3)" id="back-config-button">
+                <button
+                    type="button"
+                    class="btn btn-outline"
+                    id="back-config-button"
+                >
                     Voltar
                 </button>
 
-                <button type="button" class="btn" id="sign-button" onclick="signWithBackend()">
+                <button
+                    type="button"
+                    class="btn"
+                    id="sign-button"
+                >
                     Assinar documento
                 </button>
             </div>
         </section>
 
-        <section id="step-5" class="step" aria-labelledby="step-5-title" style="text-align:center;">
-            <div aria-hidden="true" style="font-size:2.5rem;">
+        <section
+            id="step-5"
+            class="step success-step"
+            aria-labelledby="step-5-title"
+        >
+            <div
+                class="success-icon"
+                aria-hidden="true"
+            >
                 ✅
             </div>
 
@@ -798,2092 +671,30 @@
                 Documento assinado!
             </h2>
 
-            <p id="success-description" class="step-description">
-                A assinatura digital PAdES foi aplicada com sucesso.
+            <p
+                id="success-description"
+                class="step-description"
+            >
+                A assinatura digital PAdES
+                foi aplicada com sucesso.
             </p>
 
-            <button type="button" class="btn btn-success" id="download-button" style="display:none;">
+            <button
+                type="button"
+                class="btn btn-success hidden"
+                id="download-button"
+            >
                 Baixar documento assinado
             </button>
 
-            <button type="button" class="btn btn-outline" onclick="resetApp()" id="restart-button">
+            <button
+                type="button"
+                class="btn btn-outline"
+                id="restart-button"
+            >
                 Assinar outro documento
             </button>
         </section>
     </main>
-
-    <script>
-        const API_BASE_URL = window.location.hostname.includes("github.io")
-            ? "https://seu-projeto-backend.onrender.com"
-            : "http://localhost:5000";
-
-        const STAMP_WIDTH = 240;
-        const STAMP_HEIGHT = 68;
-        const FULL_SIGNATURE_RATIO = 2.2;
-
-        let currentFile = null;
-        let pdfJsDoc = null;
-        let currentPageNum = 1;
-        let totalPages = 1;
-        let currentRenderScale = 1;
-        let currentSignatureType = "standard";
-
-        let customImageFile = null;
-        let customImageUrl = null;
-        let imageNaturalWidth = 0;
-        let imageNaturalHeight = 0;
-        let detectedImageMode = "default";
-
-        let currentDownloadUrl = null;
-        let resizeTimer = null;
-        let scrollPageLock = false;
-        let renderToken = 0;
-
-        let signaturePos = {
-            placed: false,
-            x: 0,
-            y: 0,
-            canvasRectWidth: 0,
-            canvasRectHeight: 0,
-            page: 1
-        };
-
-        const translations = {
-            pt: {
-                htmlLang: "pt-BR",
-                title: "Assinador Digital",
-                skip: "Pular para o conteúdo principal",
-                theme: "Alternar tema",
-                languageButton: "EN",
-                languageAria: "Mudar idioma para inglês",
-                steps: [
-                    "Etapa 1 de 5: Envio do documento",
-                    "Etapa 2 de 5: Posicionamento",
-                    "Etapa 3 de 5: Tipo de assinatura",
-                    "Etapa 4 de 5: Configuração",
-                    "Etapa 5 de 5: Concluído"
-                ],
-                uploadTitle: "Clique para selecionar o documento",
-                uploadDescription: "ou escolha um arquivo PDF",
-                pdfHelp: "Apenas arquivos PDF.",
-                pdfInvalid: "Selecione um arquivo PDF válido.",
-                pdfOpenError: "Não foi possível abrir o PDF.",
-                positionDescription:
-                    "Clique na página onde deseja posicionar a assinatura. Ao chegar ao final da página com a barra de rolagem, a próxima página será exibida automaticamente.",
-                previousPage: "Página anterior",
-                nextPage: "Próxima página",
-                page: "Página {current} de {total}",
-                pdfRegion: "Pré-visualização do documento PDF",
-                pdfPage:
-                    "Página do documento. Clique para posicionar a assinatura.",
-                cancel: "Cancelar",
-                confirmPosition: "Confirmar posição",
-                noPosition:
-                    "Clique no documento para posicionar a assinatura.",
-                positionSet: "Assinatura posicionada na página {page}.",
-                typeQuestion:
-                    "Qual tipo de assinatura deseja utilizar?",
-                typeDescription:
-                    "Escolha apenas a aparência visual. Todas as opções continuam utilizando o certificado digital.",
-                standard: "Padrão",
-                standardDesc:
-                    "Usa a identidade visual padrão do assinador com nome, data e informação PAdES.",
-                simple: "Customizada simples",
-                simpleDesc:
-                    "Permite personalizar o texto e escolher as informações mostradas.",
-                image: "Customizada com imagem",
-                imageDesc:
-                    "Permite usar logotipo ou uma imagem completa de assinatura.",
-                back: "Voltar",
-                configure: "Configurar assinatura",
-                configureDesc:
-                    "Configure a aparência e informe seu certificado digital.",
-                simpleOptions: "Aparência personalizada",
-                customTitle: "Texto superior:",
-                imageOptions: "Imagem personalizada",
-                imageLabel: "Imagem:",
-                imageHelp: "PNG ou JPEG, até 2 MB.",
-                imageMode: "Tratamento da imagem:",
-                auto: "Detectar automaticamente",
-                full: "Assinatura completa",
-                logo: "Logotipo / imagem lateral",
-                fullDetected: "Detectada como assinatura completa",
-                logoDetected: "Detectada como logotipo/imagem lateral",
-                imageInvalid: "Utilize somente uma imagem PNG ou JPEG.",
-                imageLarge: "A imagem deve ter no máximo 2 MB.",
-                visibleData: "Informações exibidas",
-                showDate: "Mostrar data",
-                showTime: "Mostrar hora",
-                showType: "Mostrar “Assinatura digital PAdES”",
-                cert: "Certificado (.p12 / .pfx):",
-                certHelp:
-                    "O certificado é utilizado para criar a assinatura digital do PDF.",
-                password: "Senha do certificado:",
-                sign: "Assinar documento",
-                processing: "Processando...",
-                missingPdf: "Nenhum PDF foi selecionado.",
-                missingPosition:
-                    "A posição da assinatura não foi definida.",
-                missingCertificate:
-                    "Selecione o certificado e informe a senha.",
-                missingImage:
-                    "Selecione uma imagem para utilizar a assinatura customizada com imagem.",
-                success: "Documento assinado!",
-                successDesc:
-                    "A assinatura digital PAdES foi aplicada com sucesso.",
-                download: "Baixar documento assinado",
-                restart: "Assinar outro documento",
-                signedAnnounce:
-                    "Documento assinado com sucesso. O download está disponível.",
-                datePreview: "Data da assinatura",
-                timePreview: "Hora da assinatura",
-                signerPreview: "Nome do titular",
-                padesPreview: "Assinatura digital PAdES",
-                signedBy: "Assinado digitalmente por"
-            },
-
-            en: {
-                htmlLang: "en",
-                title: "Digital Signer",
-                skip: "Skip to main content",
-                theme: "Toggle theme",
-                languageButton: "PT",
-                languageAria: "Change language to Portuguese",
-                steps: [
-                    "Step 1 of 5: Document upload",
-                    "Step 2 of 5: Placement",
-                    "Step 3 of 5: Signature type",
-                    "Step 4 of 5: Configuration",
-                    "Step 5 of 5: Completed"
-                ],
-                uploadTitle: "Click to select the document",
-                uploadDescription: "or choose a PDF file",
-                pdfHelp: "PDF files only.",
-                pdfInvalid: "Select a valid PDF file.",
-                pdfOpenError: "Unable to open the PDF.",
-                positionDescription:
-                    "Click on the page where you want to place the signature. When you reach the bottom of the page by scrolling, the next page will be displayed automatically.",
-                previousPage: "Previous page",
-                nextPage: "Next page",
-                page: "Page {current} of {total}",
-                pdfRegion: "PDF document preview",
-                pdfPage:
-                    "Document page. Click to position the signature.",
-                cancel: "Cancel",
-                confirmPosition: "Confirm position",
-                noPosition:
-                    "Click on the document to position the signature.",
-                positionSet: "Signature positioned on page {page}.",
-                typeQuestion:
-                    "Which signature type would you like to use?",
-                typeDescription:
-                    "Choose the visual appearance only. All options still use the digital certificate.",
-                standard: "Standard",
-                standardDesc:
-                    "Uses the signer's standard visual identity with name, date and PAdES information.",
-                simple: "Simple custom",
-                simpleDesc:
-                    "Lets you customize the text and choose which information is shown.",
-                image: "Custom with image",
-                imageDesc:
-                    "Lets you use a logo or a complete signature image.",
-                back: "Back",
-                configure: "Configure signature",
-                configureDesc:
-                    "Configure the appearance and provide your digital certificate.",
-                simpleOptions: "Custom appearance",
-                customTitle: "Top text:",
-                imageOptions: "Custom image",
-                imageLabel: "Image:",
-                imageHelp: "PNG or JPEG, up to 2 MB.",
-                imageMode: "Image treatment:",
-                auto: "Detect automatically",
-                full: "Complete signature",
-                logo: "Logo / side image",
-                fullDetected: "Detected as complete signature",
-                logoDetected: "Detected as logo/side image",
-                imageInvalid: "Use a PNG or JPEG image only.",
-                imageLarge: "The image must be no larger than 2 MB.",
-                visibleData: "Displayed information",
-                showDate: "Show date",
-                showTime: "Show time",
-                showType: "Show “PAdES digital signature”",
-                cert: "Certificate (.p12 / .pfx):",
-                certHelp:
-                    "The certificate is used to create the PDF digital signature.",
-                password: "Certificate password:",
-                sign: "Sign document",
-                processing: "Processing...",
-                missingPdf: "No PDF was selected.",
-                missingPosition:
-                    "The signature position has not been defined.",
-                missingCertificate:
-                    "Select the certificate and enter its password.",
-                missingImage:
-                    "Select an image to use the custom signature with image.",
-                success: "Document signed!",
-                successDesc:
-                    "The PAdES digital signature was successfully applied.",
-                download: "Download signed document",
-                restart: "Sign another document",
-                signedAnnounce:
-                    "Document signed successfully. The download is available.",
-                datePreview: "Signature date",
-                timePreview: "Signature time",
-                signerPreview: "Certificate holder",
-                padesPreview: "PAdES digital signature",
-                signedBy: "Digitally signed by"
-            }
-        };
-
-        const savedLanguage = localStorage.getItem("language");
-
-        let currentLanguage = savedLanguage
-            ? savedLanguage
-            : navigator.language.toLowerCase().startsWith("pt")
-                ? "pt"
-                : "en";
-
-        let manualTheme =
-            localStorage.getItem("theme");
-
-        function systemPrefersDark() {
-            return window.matchMedia &&
-                window.matchMedia("(prefers-color-scheme: dark)").matches;
-        }
-
-        function applyTheme(theme) {
-            const dark = theme === "dark";
-
-            document.documentElement.classList.toggle(
-                "dark-theme",
-                dark
-            );
-
-            document
-                .getElementById("theme-button")
-                .setAttribute(
-                    "aria-pressed",
-                    String(dark)
-                );
-        }
-
-        function initializeTheme() {
-            if (manualTheme === "dark" || manualTheme === "light") {
-                applyTheme(manualTheme);
-            } else {
-                applyTheme(
-                    systemPrefersDark()
-                        ? "dark"
-                        : "light"
-                );
-            }
-        }
-
-        function toggleTheme() {
-            const currentlyDark =
-                document.documentElement.classList.contains(
-                    "dark-theme"
-                );
-
-            manualTheme =
-                currentlyDark
-                    ? "light"
-                    : "dark";
-
-            localStorage.setItem(
-                "theme",
-                manualTheme
-            );
-
-            applyTheme(
-                manualTheme
-            );
-        }
-
-        if (window.matchMedia) {
-            const themeMedia =
-                window.matchMedia(
-                    "(prefers-color-scheme: dark)"
-                );
-
-            themeMedia.addEventListener(
-                "change",
-                event => {
-                    if (!localStorage.getItem("theme")) {
-                        applyTheme(
-                            event.matches
-                                ? "dark"
-                                : "light"
-                        );
-                    }
-                }
-            );
-        }
-
-        function toggleLanguage() {
-            currentLanguage =
-                currentLanguage === "pt"
-                    ? "en"
-                    : "pt";
-
-            localStorage.setItem(
-                "language",
-                currentLanguage
-            );
-
-            applyTranslations();
-            updateSignaturePreview();
-        }
-
-        function t() {
-            return translations[currentLanguage];
-        }
-
-        function setText(id, value) {
-            const element =
-                document.getElementById(id);
-
-            if (element) {
-                element.textContent = value;
-            }
-        }
-
-        function applyTranslations() {
-            const language = t();
-
-            document.documentElement.lang =
-                language.htmlLang;
-
-            document.title =
-                language.title;
-
-            setText(
-                "title",
-                language.title
-            );
-
-            setText(
-                "skip-link",
-                language.skip
-            );
-
-            setText(
-                "theme-text",
-                language.theme
-            );
-
-            document
-                .getElementById("theme-button")
-                .setAttribute(
-                    "aria-label",
-                    language.theme
-                );
-
-            setText(
-                "language-label",
-                language.languageButton
-            );
-
-            document
-                .getElementById("language-button")
-                .setAttribute(
-                    "aria-label",
-                    language.languageAria
-                );
-
-            setText(
-                "upload-title",
-                language.uploadTitle
-            );
-
-            setText(
-                "upload-description",
-                language.uploadDescription
-            );
-
-            setText(
-                "pdf-help",
-                language.pdfHelp
-            );
-
-            setText(
-                "position-description",
-                language.positionDescription
-            );
-
-            document
-                .getElementById("prev-page")
-                .setAttribute(
-                    "aria-label",
-                    language.previousPage
-                );
-
-            document
-                .getElementById("next-page")
-                .setAttribute(
-                    "aria-label",
-                    language.nextPage
-                );
-
-            document
-                .getElementById("canvas-container")
-                .setAttribute(
-                    "aria-label",
-                    language.pdfRegion
-                );
-
-            document
-                .getElementById("pdf-stage")
-                .setAttribute(
-                    "aria-label",
-                    language.pdfPage
-                );
-
-            setText(
-                "cancel-button",
-                language.cancel
-            );
-
-            setText(
-                "confirm-position-button",
-                language.confirmPosition
-            );
-
-            setText(
-                "step-3-title",
-                language.typeQuestion
-            );
-
-            setText(
-                "signature-type-description",
-                language.typeDescription
-            );
-
-            setText(
-                "type-standard-title",
-                language.standard
-            );
-
-            setText(
-                "type-standard-description",
-                language.standardDesc
-            );
-
-            setText(
-                "type-simple-title",
-                language.simple
-            );
-
-            setText(
-                "type-simple-description",
-                language.simpleDesc
-            );
-
-            setText(
-                "type-image-title",
-                language.image
-            );
-
-            setText(
-                "type-image-description",
-                language.imageDesc
-            );
-
-            setText(
-                "back-type-button",
-                language.back
-            );
-
-            setText(
-                "step-4-title",
-                language.configure
-            );
-
-            setText(
-                "step-4-description",
-                language.configureDesc
-            );
-
-            setText(
-                "simple-options-title",
-                language.simpleOptions
-            );
-
-            setText(
-                "custom-title-label",
-                language.customTitle
-            );
-
-            setText(
-                "image-options-title",
-                language.imageOptions
-            );
-
-            setText(
-                "image-label",
-                language.imageLabel
-            );
-
-            setText(
-                "image-help",
-                language.imageHelp
-            );
-
-            setText(
-                "image-mode-label",
-                language.imageMode
-            );
-
-            setText(
-                "image-mode-auto",
-                language.auto
-            );
-
-            setText(
-                "image-mode-full",
-                language.full
-            );
-
-            setText(
-                "image-mode-logo",
-                language.logo
-            );
-
-            setText(
-                "visible-data-title",
-                language.visibleData
-            );
-
-            setText(
-                "show-date-label",
-                language.showDate
-            );
-
-            setText(
-                "show-time-label",
-                language.showTime
-            );
-
-            setText(
-                "show-type-label",
-                language.showType
-            );
-
-            setText(
-                "certificate-label",
-                language.cert
-            );
-
-            setText(
-                "certificate-help",
-                language.certHelp
-            );
-
-            setText(
-                "password-label",
-                language.password
-            );
-
-            setText(
-                "back-config-button",
-                language.back
-            );
-
-            setText(
-                "sign-button",
-                language.sign
-            );
-
-            setText(
-                "step-5-title",
-                language.success
-            );
-
-            setText(
-                "success-description",
-                language.successDesc
-            );
-
-            setText(
-                "download-button",
-                language.download
-            );
-
-            setText(
-                "restart-button",
-                language.restart
-            );
-
-            updateStepSubtitle();
-            updatePagination();
-            updateImageInfo();
-        }
-
-        function announce(message) {
-            const announcer =
-                document.getElementById(
-                    "screen-reader-announcer"
-                );
-
-            announcer.textContent = "";
-
-            requestAnimationFrame(
-                () => {
-                    announcer.textContent =
-                        message;
-                }
-            );
-        }
-
-        function announceError(message) {
-            const alert =
-                document.getElementById(
-                    "screen-reader-alert"
-                );
-
-            alert.textContent = "";
-
-            requestAnimationFrame(
-                () => {
-                    alert.textContent =
-                        message;
-                }
-            );
-        }
-
-        function getCurrentStep() {
-            const active =
-                document.querySelector(
-                    ".step.active"
-                );
-
-            if (!active) {
-                return 1;
-            }
-
-            const match =
-                active.id.match(
-                    /^step-(\d+)$/
-                );
-
-            return match
-                ? Number(match[1])
-                : 1;
-        }
-
-        function updateStepSubtitle() {
-            const step =
-                getCurrentStep();
-
-            setText(
-                "subtitle",
-                t().steps[step - 1]
-            );
-        }
-
-        function goToStep(step) {
-            document
-                .querySelectorAll(".step")
-                .forEach(
-                    section => {
-                        section.classList.remove(
-                            "active"
-                        );
-                    }
-                );
-
-            const target =
-                document.getElementById(
-                    `step-${step}`
-                );
-
-            if (!target) {
-                return;
-            }
-
-            target.classList.add(
-                "active"
-            );
-
-            updateStepSubtitle();
-
-            const heading =
-                target.querySelector(
-                    "h2"
-                );
-
-            if (heading) {
-                heading.setAttribute(
-                    "tabindex",
-                    "-1"
-                );
-
-                heading.focus({
-                    preventScroll: false
-                });
-            }
-
-            announce(
-                t().steps[step - 1]
-            );
-        }
-
-        async function handleFileUpload(event) {
-            const file =
-                event.target.files[0];
-
-            if (!file) {
-                return;
-            }
-
-            const error =
-                document.getElementById(
-                    "error-pdf"
-                );
-
-            const isPdf =
-                file.type ===
-                "application/pdf" ||
-                file.name
-                    .toLowerCase()
-                    .endsWith(".pdf");
-
-            if (!isPdf) {
-                error.textContent =
-                    t().pdfInvalid;
-
-                error.style.display =
-                    "block";
-
-                announceError(
-                    t().pdfInvalid
-                );
-
-                return;
-            }
-
-            error.style.display =
-                "none";
-
-            currentFile =
-                file;
-
-            try {
-                const data =
-                    await file.arrayBuffer();
-
-                pdfJsDoc =
-                    await pdfjsLib
-                        .getDocument({
-                            data:
-                                new Uint8Array(
-                                    data
-                                )
-                        })
-                        .promise;
-
-                totalPages =
-                    pdfJsDoc.numPages;
-
-                goToStep(2);
-
-                await renderPage(
-                    1,
-                    true
-                );
-            } catch (errorPdf) {
-                console.error(
-                    errorPdf
-                );
-
-                currentFile =
-                    null;
-
-                error.textContent =
-                    t().pdfOpenError;
-
-                error.style.display =
-                    "block";
-
-                announceError(
-                    t().pdfOpenError
-                );
-
-                goToStep(1);
-            }
-        }
-
-        async function renderPage(
-            pageNumber,
-            resetScroll = true
-        ) {
-            if (!pdfJsDoc) {
-                return;
-            }
-
-            const token =
-                ++renderToken;
-
-            currentPageNum =
-                pageNumber;
-
-            updatePagination();
-
-            const page =
-                await pdfJsDoc.getPage(
-                    pageNumber
-                );
-
-            if (token !== renderToken) {
-                return;
-            }
-
-            const canvas =
-                document.getElementById(
-                    "pdf-canvas"
-                );
-
-            const stage =
-                document.getElementById(
-                    "pdf-stage"
-                );
-
-            const container =
-                document.getElementById(
-                    "canvas-container"
-                );
-
-            const context =
-                canvas.getContext(
-                    "2d"
-                );
-
-            const originalViewport =
-                page.getViewport({
-                    scale: 1
-                });
-
-            const availableWidth =
-                Math.max(
-                    container.clientWidth -
-                    20,
-                    100
-                );
-
-            let scale =
-                availableWidth /
-                originalViewport.width;
-
-            scale =
-                Math.max(
-                    .1,
-                    Math.min(
-                        scale,
-                        1.5
-                    )
-                );
-
-            currentRenderScale =
-                scale;
-
-            const viewport =
-                page.getViewport({
-                    scale
-                });
-
-            canvas.width =
-                Math.round(
-                    viewport.width
-                );
-
-            canvas.height =
-                Math.round(
-                    viewport.height
-                );
-
-            canvas.style.width =
-                `${Math.round(
-                    viewport.width
-                )}px`;
-
-            canvas.style.height =
-                `${Math.round(
-                    viewport.height
-                )}px`;
-
-            stage.style.width =
-                canvas.style.width;
-
-            stage.style.height =
-                canvas.style.height;
-
-            await page.render({
-                canvasContext:
-                    context,
-
-                viewport
-            }).promise;
-
-            if (token !== renderToken) {
-                return;
-            }
-
-            resetSignaturePosition();
-
-            if (resetScroll) {
-                container.scrollTop =
-                    0;
-
-                container.scrollLeft =
-                    0;
-            }
-
-            scrollPageLock =
-                false;
-
-            announce(
-                t()
-                    .page
-                    .replace(
-                        "{current}",
-                        currentPageNum
-                    )
-                    .replace(
-                        "{total}",
-                        totalPages
-                    )
-            );
-        }
-
-        function updatePagination() {
-            if (!pdfJsDoc) {
-                return;
-            }
-
-            const pageText =
-                t()
-                    .page
-                    .replace(
-                        "{current}",
-                        currentPageNum
-                    )
-                    .replace(
-                        "{total}",
-                        totalPages
-                    );
-
-            setText(
-                "page-indicator",
-                pageText
-            );
-
-            document
-                .getElementById(
-                    "prev-page"
-                )
-                .disabled =
-                currentPageNum <= 1;
-
-            document
-                .getElementById(
-                    "next-page"
-                )
-                .disabled =
-                currentPageNum >=
-                totalPages;
-        }
-
-        async function changePage(offset) {
-            if (
-                !pdfJsDoc ||
-                scrollPageLock
-            ) {
-                return;
-            }
-
-            const newPage =
-                currentPageNum +
-                offset;
-
-            if (
-                newPage < 1 ||
-                newPage > totalPages
-            ) {
-                return;
-            }
-
-            scrollPageLock =
-                true;
-
-            try {
-                await renderPage(
-                    newPage,
-                    true
-                );
-            } finally {
-                scrollPageLock =
-                    false;
-            }
-        }
-
-        document
-            .getElementById(
-                "canvas-container"
-            )
-            .addEventListener(
-                "scroll",
-                async event => {
-                    const container =
-                        event.currentTarget;
-
-                    if (
-                        scrollPageLock ||
-                        currentPageNum >=
-                        totalPages
-                    ) {
-                        return;
-                    }
-
-                    const hasVerticalScroll =
-                        container.scrollHeight >
-                        container.clientHeight +
-                        2;
-
-                    if (!hasVerticalScroll) {
-                        return;
-                    }
-
-                    const reachedBottom =
-                        container.scrollTop +
-                        container.clientHeight >=
-                        container.scrollHeight -
-                        3;
-
-                    if (reachedBottom) {
-                        scrollPageLock =
-                            true;
-
-                        try {
-                            await renderPage(
-                                currentPageNum +
-                                1,
-                                true
-                            );
-                        } finally {
-                            scrollPageLock =
-                                false;
-                        }
-                    }
-                }
-            );
-
-        function placeSignature(event) {
-            const stage =
-                document.getElementById(
-                    "pdf-stage"
-                );
-
-            const box =
-                document.getElementById(
-                    "signature-box"
-                );
-
-            const rect =
-                stage.getBoundingClientRect();
-
-            const width =
-                STAMP_WIDTH *
-                currentRenderScale;
-
-            const height =
-                STAMP_HEIGHT *
-                currentRenderScale;
-
-            const clickX =
-                event.clientX -
-                rect.left;
-
-            const clickY =
-                event.clientY -
-                rect.top;
-
-            if (
-                clickX < 0 ||
-                clickX > rect.width ||
-                clickY < 0 ||
-                clickY > rect.height
-            ) {
-                return;
-            }
-
-            let left =
-                clickX -
-                width / 2;
-
-            let top =
-                clickY -
-                height / 2;
-
-            left =
-                Math.max(
-                    0,
-                    Math.min(
-                        left,
-                        Math.max(
-                            0,
-                            rect.width -
-                            width
-                        )
-                    )
-                );
-
-            top =
-                Math.max(
-                    0,
-                    Math.min(
-                        top,
-                        Math.max(
-                            0,
-                            rect.height -
-                            height
-                        )
-                    )
-                );
-
-            box.style.width =
-                `${Math.min(
-                    width,
-                    rect.width
-                )}px`;
-
-            box.style.height =
-                `${Math.min(
-                    height,
-                    rect.height
-                )}px`;
-
-            box.style.left =
-                `${left}px`;
-
-            box.style.top =
-                `${top}px`;
-
-            box.style.display =
-                "block";
-
-            signaturePos = {
-                placed: true,
-                x: left,
-                y: top,
-                canvasRectWidth:
-                    rect.width,
-                canvasRectHeight:
-                    rect.height,
-                page:
-                    currentPageNum
-            };
-
-            updateSignaturePreview();
-
-            announce(
-                t()
-                    .positionSet
-                    .replace(
-                        "{page}",
-                        currentPageNum
-                    )
-            );
-        }
-
-        function resetSignaturePosition() {
-            signaturePos = {
-                placed: false,
-                x: 0,
-                y: 0,
-                canvasRectWidth: 0,
-                canvasRectHeight: 0,
-                page:
-                    currentPageNum
-            };
-
-            document
-                .getElementById(
-                    "signature-box"
-                )
-                .style.display =
-                "none";
-        }
-
-        function confirmPosition() {
-            if (!signaturePos.placed) {
-                announceError(
-                    t().noPosition
-                );
-
-                alert(
-                    t().noPosition
-                );
-
-                return;
-            }
-
-            goToStep(3);
-        }
-
-        function selectSignatureType(type) {
-            currentSignatureType =
-                type;
-
-            const simple =
-                document.getElementById(
-                    "simple-options"
-                );
-
-            const image =
-                document.getElementById(
-                    "image-options"
-                );
-
-            simple.style.display =
-                type === "simple" ||
-                    type === "image"
-                    ? "block"
-                    : "none";
-
-            image.style.display =
-                type === "image"
-                    ? "block"
-                    : "none";
-
-            if (type === "standard") {
-                document
-                    .getElementById(
-                        "customTitle"
-                    )
-                    .value =
-                    t().signedBy;
-            }
-
-            updateSignaturePreview();
-            goToStep(4);
-        }
-
-        function handleSignatureImage(event) {
-            const file =
-                event.target.files[0];
-
-            if (!file) {
-                removeSignatureImage();
-                return;
-            }
-
-            const allowedTypes = [
-                "image/png",
-                "image/jpeg"
-            ];
-
-            if (
-                !allowedTypes.includes(
-                    file.type
-                )
-            ) {
-                event.target.value =
-                    "";
-
-                announceError(
-                    t().imageInvalid
-                );
-
-                alert(
-                    t().imageInvalid
-                );
-
-                return;
-            }
-
-            if (
-                file.size >
-                2 * 1024 * 1024
-            ) {
-                event.target.value =
-                    "";
-
-                announceError(
-                    t().imageLarge
-                );
-
-                alert(
-                    t().imageLarge
-                );
-
-                return;
-            }
-
-            if (customImageUrl) {
-                URL.revokeObjectURL(
-                    customImageUrl
-                );
-            }
-
-            customImageFile =
-                file;
-
-            customImageUrl =
-                URL.createObjectURL(
-                    file
-                );
-
-            const image =
-                new Image();
-
-            image.onload =
-                () => {
-                    imageNaturalWidth =
-                        image.naturalWidth;
-
-                    imageNaturalHeight =
-                        image.naturalHeight;
-
-                    updateImageMode();
-                };
-
-            image.src =
-                customImageUrl;
-        }
-
-        function removeSignatureImage() {
-            customImageFile =
-                null;
-
-            imageNaturalWidth =
-                0;
-
-            imageNaturalHeight =
-                0;
-
-            detectedImageMode =
-                "default";
-
-            const input =
-                document.getElementById(
-                    "signatureImage"
-                );
-
-            if (input) {
-                input.value = "";
-            }
-
-            if (customImageUrl) {
-                URL.revokeObjectURL(
-                    customImageUrl
-                );
-
-                customImageUrl =
-                    null;
-            }
-
-            document
-                .getElementById(
-                    "imageInfo"
-                )
-                .style.display =
-                "none";
-
-            updateSignaturePreview();
-        }
-
-        function updateImageMode() {
-            if (
-                !customImageFile ||
-                !imageNaturalHeight
-            ) {
-                detectedImageMode =
-                    "default";
-
-                updateSignaturePreview();
-                return;
-            }
-
-            const requested =
-                document
-                    .getElementById(
-                        "imageMode"
-                    )
-                    .value;
-
-            const ratio =
-                imageNaturalWidth /
-                imageNaturalHeight;
-
-            if (requested === "full") {
-                detectedImageMode =
-                    "full";
-            } else if (
-                requested === "logo"
-            ) {
-                detectedImageMode =
-                    "logo";
-            } else {
-                detectedImageMode =
-                    ratio >=
-                        FULL_SIGNATURE_RATIO
-                        ? "full"
-                        : "logo";
-            }
-
-            updateImageInfo();
-            updateSignaturePreview();
-        }
-
-        function updateImageInfo() {
-            if (
-                !customImageFile ||
-                !imageNaturalHeight
-            ) {
-                return;
-            }
-
-            const ratio =
-                imageNaturalWidth /
-                imageNaturalHeight;
-
-            const info =
-                document.getElementById(
-                    "imageInfo"
-                );
-
-            info.style.display =
-                "block";
-
-            setText(
-                "imageModeResult",
-                detectedImageMode ===
-                    "full"
-                    ? t().fullDetected
-                    : t().logoDetected
-            );
-
-            setText(
-                "imageDimensions",
-                `${imageNaturalWidth} × ${imageNaturalHeight}px — ${ratio.toFixed(2)}:1`
-            );
-        }
-
-        function getPreviewDateText() {
-            const showDate =
-                document.getElementById(
-                    "showDate"
-                ).checked;
-
-            const showTime =
-                document.getElementById(
-                    "showTime"
-                ).checked;
-
-            const pieces = [];
-
-            if (showDate) {
-                pieces.push(
-                    t().datePreview
-                );
-            }
-
-            if (showTime) {
-                pieces.push(
-                    t().timePreview
-                );
-            }
-
-            return pieces.join(
-                " · "
-            );
-        }
-
-        function updateSignaturePreview() {
-            const standard =
-                document.getElementById(
-                    "standard-preview"
-                );
-
-            const full =
-                document.getElementById(
-                    "full-preview"
-                );
-
-            const logo =
-                document.getElementById(
-                    "preview-logo"
-                );
-
-            const previewText =
-                document.getElementById(
-                    "preview-text"
-                );
-
-            const showType =
-                document.getElementById(
-                    "showType"
-                ).checked;
-
-            const dateText =
-                getPreviewDateText();
-
-            if (
-                currentSignatureType ===
-                "image" &&
-                customImageUrl &&
-                detectedImageMode ===
-                "full"
-            ) {
-                standard.style.display =
-                    "none";
-
-                full.style.display =
-                    "block";
-
-                document
-                    .getElementById(
-                        "full-preview-image"
-                    )
-                    .src =
-                    customImageUrl;
-
-                setText(
-                    "full-preview-date",
-                    dateText
-                );
-
-                return;
-            }
-
-            full.style.display =
-                "none";
-
-            standard.style.display =
-                "flex";
-
-            if (
-                currentSignatureType ===
-                "image" &&
-                customImageUrl &&
-                detectedImageMode ===
-                "logo"
-            ) {
-                logo.innerHTML =
-                    `<img src="${customImageUrl}" alt="">`;
-            } else {
-                logo.innerHTML =
-                    `<div class="default-icon"></div>`;
-            }
-
-            const title =
-                currentSignatureType ===
-                    "standard"
-                    ? t().signedBy
-                    : (
-                        document
-                            .getElementById(
-                                "customTitle"
-                            )
-                            .value
-                            .trim() ||
-                        t().signedBy
-                    );
-
-            const lines = [
-                `<strong>${escapeHtml(title)}</strong>`,
-                escapeHtml(
-                    t().signerPreview
-                )
-            ];
-
-            if (dateText) {
-                lines.push(
-                    `<small>${escapeHtml(dateText)}</small>`
-                );
-            }
-
-            if (showType) {
-                lines.push(
-                    `<small>${escapeHtml(t().padesPreview)}</small>`
-                );
-            }
-
-            previewText.innerHTML =
-                lines.join("<br>");
-        }
-
-        function escapeHtml(text) {
-            const div =
-                document.createElement(
-                    "div"
-                );
-
-            div.textContent =
-                text;
-
-            return div.innerHTML;
-        }
-
-        async function signWithBackend() {
-            const certificate =
-                document
-                    .getElementById(
-                        "p12Input"
-                    )
-                    .files[0];
-
-            const password =
-                document
-                    .getElementById(
-                        "p12Password"
-                    )
-                    .value;
-
-            const error =
-                document.getElementById(
-                    "error-sign"
-                );
-
-            const button =
-                document.getElementById(
-                    "sign-button"
-                );
-
-            if (!currentFile) {
-                showSignError(
-                    t().missingPdf
-                );
-                return;
-            }
-
-            if (!signaturePos.placed) {
-                showSignError(
-                    t().missingPosition
-                );
-                return;
-            }
-
-            if (
-                !certificate ||
-                !password
-            ) {
-                showSignError(
-                    t().missingCertificate
-                );
-                return;
-            }
-
-            if (
-                currentSignatureType ===
-                "image" &&
-                !customImageFile
-            ) {
-                showSignError(
-                    t().missingImage
-                );
-                return;
-            }
-
-            error.style.display =
-                "none";
-
-            button.disabled =
-                true;
-
-            button.textContent =
-                t().processing;
-
-            const formData =
-                new FormData();
-
-            formData.append(
-                "documento",
-                currentFile
-            );
-
-            formData.append(
-                "certificado",
-                certificate
-            );
-
-            formData.append(
-                "senha",
-                password
-            );
-
-            formData.append(
-                "posicao",
-                JSON.stringify(
-                    signaturePos
-                )
-            );
-
-            formData.append(
-                "tipo_assinatura",
-                currentSignatureType
-            );
-
-            const visual = {
-                titulo:
-                    currentSignatureType ===
-                        "standard"
-                        ? t().signedBy
-                        : document
-                            .getElementById(
-                                "customTitle"
-                            )
-                            .value
-                            .trim(),
-
-                mostrarData:
-                    document
-                        .getElementById(
-                            "showDate"
-                        )
-                        .checked,
-
-                mostrarHora:
-                    document
-                        .getElementById(
-                            "showTime"
-                        )
-                        .checked,
-
-                mostrarTipo:
-                    document
-                        .getElementById(
-                            "showType"
-                        )
-                        .checked
-            };
-
-            formData.append(
-                "visual",
-                JSON.stringify(
-                    visual
-                )
-            );
-
-            if (
-                currentSignatureType ===
-                "image"
-            ) {
-                formData.append(
-                    "modo_imagem",
-                    document
-                        .getElementById(
-                            "imageMode"
-                        )
-                        .value
-                );
-
-                formData.append(
-                    "imagem_assinatura",
-                    customImageFile
-                );
-            }
-
-            try {
-                const response =
-                    await fetch(
-                        `${API_BASE_URL}/api/assinar`,
-                        {
-                            method: "POST",
-                            body:
-                                formData
-                        }
-                    );
-
-                if (!response.ok) {
-                    let message =
-                        `HTTP ${response.status}`;
-
-                    try {
-                        const data =
-                            await response.json();
-
-                        if (data?.erro) {
-                            message =
-                                data.erro;
-                        }
-                    } catch (_) {
-                    }
-
-                    throw new Error(
-                        message
-                    );
-                }
-
-                const blob =
-                    await response.blob();
-
-                if (currentDownloadUrl) {
-                    URL.revokeObjectURL(
-                        currentDownloadUrl
-                    );
-                }
-
-                currentDownloadUrl =
-                    URL.createObjectURL(
-                        blob
-                    );
-
-                const download =
-                    document.getElementById(
-                        "download-button"
-                    );
-
-                download.onclick =
-                    downloadSignedDocument;
-
-                download.style.display =
-                    "block";
-
-                goToStep(5);
-
-                announce(
-                    t().signedAnnounce
-                );
-            } catch (requestError) {
-                console.error(
-                    requestError
-                );
-
-                showSignError(
-                    requestError.message
-                );
-            } finally {
-                button.disabled =
-                    false;
-
-                button.textContent =
-                    t().sign;
-            }
-        }
-
-        function showSignError(message) {
-            const error =
-                document.getElementById(
-                    "error-sign"
-                );
-
-            error.textContent =
-                message;
-
-            error.style.display =
-                "block";
-
-            announceError(
-                message
-            );
-        }
-
-        function downloadSignedDocument() {
-            if (
-                !currentDownloadUrl ||
-                !currentFile
-            ) {
-                return;
-            }
-
-            const link =
-                document.createElement(
-                    "a"
-                );
-
-            const name =
-                currentFile.name;
-
-            link.href =
-                currentDownloadUrl;
-
-            link.download =
-                name
-                    .toLowerCase()
-                    .endsWith(".pdf")
-                    ? `${name.slice(0, -4)}_assinado.pdf`
-                    : `${name}_assinado.pdf`;
-
-            document.body.appendChild(
-                link
-            );
-
-            link.click();
-            link.remove();
-        }
-
-        function resetApp() {
-            currentFile =
-                null;
-
-            pdfJsDoc =
-                null;
-
-            currentPageNum =
-                1;
-
-            totalPages =
-                1;
-
-            currentRenderScale =
-                1;
-
-            currentSignatureType =
-                "standard";
-
-            scrollPageLock =
-                false;
-
-            signaturePos = {
-                placed: false,
-                x: 0,
-                y: 0,
-                canvasRectWidth: 0,
-                canvasRectHeight: 0,
-                page: 1
-            };
-
-            document
-                .getElementById(
-                    "fileInput"
-                )
-                .value =
-                "";
-
-            document
-                .getElementById(
-                    "p12Input"
-                )
-                .value =
-                "";
-
-            document
-                .getElementById(
-                    "p12Password"
-                )
-                .value =
-                "";
-
-            document
-                .getElementById(
-                    "customTitle"
-                )
-                .value =
-                t().signedBy;
-
-            document
-                .getElementById(
-                    "showDate"
-                )
-                .checked =
-                true;
-
-            /* Hora desmarcada por padrão. */
-            document
-                .getElementById(
-                    "showTime"
-                )
-                .checked =
-                false;
-
-            document
-                .getElementById(
-                    "showType"
-                )
-                .checked =
-                true;
-
-            document
-                .getElementById(
-                    "imageMode"
-                )
-                .value =
-                "auto";
-
-            document
-                .getElementById(
-                    "simple-options"
-                )
-                .style.display =
-                "none";
-
-            document
-                .getElementById(
-                    "image-options"
-                )
-                .style.display =
-                "none";
-
-            document
-                .getElementById(
-                    "signature-box"
-                )
-                .style.display =
-                "none";
-
-            document
-                .getElementById(
-                    "download-button"
-                )
-                .style.display =
-                "none";
-
-            document
-                .querySelectorAll(
-                    ".alert"
-                )
-                .forEach(
-                    element => {
-                        element.style.display =
-                            "none";
-                    }
-                );
-
-            removeSignatureImage();
-
-            if (currentDownloadUrl) {
-                URL.revokeObjectURL(
-                    currentDownloadUrl
-                );
-
-                currentDownloadUrl =
-                    null;
-            }
-
-            updateSignaturePreview();
-            goToStep(1);
-        }
-
-        window.addEventListener(
-            "resize",
-            () => {
-                if (!pdfJsDoc) {
-                    return;
-                }
-
-                clearTimeout(
-                    resizeTimer
-                );
-
-                resizeTimer =
-                    setTimeout(
-                        () => {
-                            renderPage(
-                                currentPageNum,
-                                false
-                            );
-                        },
-                        200
-                    );
-            }
-        );
-
-        initializeTheme();
-        applyTranslations();
-        updateSignaturePreview();
-    </script>
 </body>
-
 </html>
