@@ -4,6 +4,7 @@ import os
 import re
 import tempfile
 import uuid
+import warnings
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -12,6 +13,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from PIL import Image, UnidentifiedImageError
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from pyhanko import stamp
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
@@ -35,55 +37,147 @@ app = Flask(__name__)
 STAMP_WIDTH = 240
 STAMP_HEIGHT = 68
 
-MAX_UPLOAD_SIZE = 30 * 1024 * 1024
+MAX_REQUEST_SIZE = 30 * 1024 * 1024
+MAX_PDF_SIZE = 25 * 1024 * 1024
+MAX_CERTIFICATE_SIZE = 5 * 1024 * 1024
 MAX_SIGNATURE_IMAGE_SIZE = 2 * 1024 * 1024
 MAX_IMAGE_DIMENSION = 4000
+MAX_PASSWORD_LENGTH = 512
+MAX_JSON_FIELD_LENGTH = 10_000
 
 FULL_SIGNATURE_RATIO = 2.2
 ALLOWED_IMAGE_FORMATS = {"PNG", "JPEG"}
 
-app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE
+IS_PRODUCTION = os.environ.get(
+    "APP_ENV",
+    "development",
+).lower() == "production"
+
+ENFORCE_HTTPS = os.environ.get(
+    "ENFORCE_HTTPS",
+    "true" if IS_PRODUCTION else "false",
+).lower() == "true"
+
+REQUIRE_ORIGIN = os.environ.get(
+    "REQUIRE_ORIGIN",
+    "true" if IS_PRODUCTION else "false",
+).lower() == "true"
+
+app.config.update(
+    MAX_CONTENT_LENGTH=MAX_REQUEST_SIZE,
+    MAX_FORM_MEMORY_SIZE=1 * 1024 * 1024,
+    MAX_FORM_PARTS=20,
+)
+
+trusted_hosts_env = os.environ.get(
+    "TRUSTED_HOSTS",
+    "",
+).strip()
+
+if trusted_hosts_env:
+    app.config["TRUSTED_HOSTS"] = [
+        host.strip()
+        for host in trusted_hosts_env.split(",")
+        if host.strip()
+    ]
+
+# Render/reverse proxy: confia em exatamente uma camada de proxy.
+if IS_PRODUCTION:
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app,
+        x_for=1,
+        x_proto=1,
+        x_host=1,
+    )
 
 try:
     APP_TIMEZONE = ZoneInfo(
         os.environ.get(
             "APP_TIMEZONE",
-            "America/Sao_Paulo"
+            "America/Sao_Paulo",
         )
     )
 except Exception:
     APP_TIMEZONE = ZoneInfo("UTC")
 
 
-ALLOWED_ORIGIN = os.environ.get(
-    "ALLOWED_ORIGIN",
-    "http://127.0.0.1:5500"
-)
+def ler_origens_permitidas():
+    origens = {
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "http://localhost:3000",
+    }
 
-ALLOWED_ORIGINS = list(dict.fromkeys([
-    ALLOWED_ORIGIN,
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-    "http://localhost:3000",
-]))
+    origem_principal = os.environ.get(
+        "ALLOWED_ORIGIN",
+        "",
+    ).strip()
+
+    if origem_principal:
+        origens.add(
+            origem_principal.rstrip("/")
+        )
+
+    origens_extras = os.environ.get(
+        "ALLOWED_ORIGINS",
+        "",
+    )
+
+    for origem in origens_extras.split(","):
+        origem = origem.strip().rstrip("/")
+
+        if origem:
+            origens.add(origem)
+
+    return sorted(origens)
+
+
+ALLOWED_ORIGINS = ler_origens_permitidas()
 
 CORS(
     app,
     resources={
         r"/api/*": {
-            "origins": ALLOWED_ORIGINS
+            "origins": ALLOWED_ORIGINS,
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allow_headers": ["Content-Type"],
+            "expose_headers": [
+                "X-Signature-Image-Mode",
+                "X-RateLimit-Limit",
+                "X-RateLimit-Remaining",
+                "X-RateLimit-Reset",
+                "Retry-After",
+            ],
+            "max_age": 600,
         }
     },
+)
+
+
+RATE_LIMIT_STORAGE_URI = os.environ.get(
+    "RATELIMIT_STORAGE_URI",
+    "memory://",
 )
 
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
-    default_limits=["200 per day"],
-    storage_uri=os.environ.get(
-        "RATELIMIT_STORAGE_URI",
-        "memory://",
-    ),
+    default_limits=[
+        "200 per day",
+        "50 per hour",
+    ],
+    storage_uri=RATE_LIMIT_STORAGE_URI,
+    strategy="fixed-window",
+    headers_enabled=True,
+)
+
+
+# Evita imagens que expandem de forma excessiva após decodificação.
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_DIMENSION * MAX_IMAGE_DIMENSION
+
+warnings.simplefilter(
+    "error",
+    Image.DecompressionBombWarning,
 )
 
 
@@ -92,17 +186,55 @@ def agora():
 
 
 def criar_arquivo_temporario(suffix):
-    fd, caminho = tempfile.mkstemp(suffix=suffix)
+    fd, caminho = tempfile.mkstemp(
+        suffix=suffix
+    )
+
+    try:
+        os.chmod(caminho, 0o600)
+    except OSError:
+        pass
+
     os.close(fd)
+
     return caminho
 
 
 def remover_arquivo(caminho):
-    if caminho and os.path.exists(caminho):
-        try:
+    if not caminho:
+        return
+
+    try:
+        if os.path.exists(caminho):
             os.remove(caminho)
-        except OSError:
-            pass
+    except OSError:
+        pass
+
+
+def validar_tamanho_bytes(
+    dados,
+    limite,
+    mensagem,
+):
+    if len(dados) > limite:
+        raise ValueError(mensagem)
+
+
+def validar_origem():
+    origem = request.headers.get(
+        "Origin"
+    )
+
+    if not origem:
+        if REQUIRE_ORIGIN:
+            return False
+
+        return True
+
+    return (
+        origem.rstrip("/")
+        in ALLOWED_ORIGINS
+    )
 
 
 def normalizar_nome_assinante(nome):
@@ -111,21 +243,35 @@ def normalizar_nome_assinante(nome):
 
     nome = str(nome).strip()
 
-    # Remove CPF somente da representação visual.
+    # Remove CPF somente da aparência visual.
     nome = re.sub(
         r"\s*:\s*(?:\d{11}|\d{3}\.\d{3}\.\d{3}-\d{2})\s*$",
         "",
         nome,
     )
 
-    return nome.strip() or "Assinante"
+    nome = re.sub(
+        r"[\x00-\x1f\x7f]",
+        "",
+        nome,
+    )
+
+    return nome.strip()[:150] or "Assinante"
 
 
 def obter_nome_assinante(signer):
     try:
-        subject = signer.signing_cert.subject.native
+        subject = (
+            signer
+            .signing_cert
+            .subject
+            .native
+        )
+
         return normalizar_nome_assinante(
-            subject.get("common_name")
+            subject.get(
+                "common_name"
+            )
         )
     except Exception:
         return "Assinante"
@@ -143,11 +289,19 @@ def ajustar_texto_largura(
 
     while (
         tamanho > tamanho_minimo
-        and stringWidth(texto, fonte, tamanho) > largura_maxima
+        and stringWidth(
+            texto,
+            fonte,
+            tamanho,
+        ) > largura_maxima
     ):
         tamanho -= 0.2
 
-    if stringWidth(texto, fonte, tamanho) <= largura_maxima:
+    if stringWidth(
+        texto,
+        fonte,
+        tamanho,
+    ) <= largura_maxima:
         return texto, tamanho
 
     while (
@@ -160,100 +314,205 @@ def ajustar_texto_largura(
     ):
         texto = texto[:-1]
 
-    return texto.rstrip() + "...", tamanho
+    return (
+        texto.rstrip() + "...",
+        tamanho,
+    )
 
 
 def formatar_data_assinatura(config):
     mostrar_data = (
-        config.get("mostrarData", True) is True
+        config.get(
+            "mostrarData",
+            True,
+        )
+        is True
     )
 
     mostrar_hora = (
-        config.get("mostrarHora", False) is True
+        config.get(
+            "mostrarHora",
+            False,
+        )
+        is True
     )
 
     momento = agora()
 
-    if mostrar_data and mostrar_hora:
-        return momento.strftime("%d/%m/%Y %H:%M")
+    if (
+        mostrar_data
+        and mostrar_hora
+    ):
+        return momento.strftime(
+            "%d/%m/%Y %H:%M"
+        )
 
     if mostrar_data:
-        return momento.strftime("%d/%m/%Y")
+        return momento.strftime(
+            "%d/%m/%Y"
+        )
 
     if mostrar_hora:
-        return momento.strftime("%H:%M")
+        return momento.strftime(
+            "%H:%M"
+        )
 
     return ""
 
 
+def validar_config_visual(config):
+    if not isinstance(config, dict):
+        raise ValueError(
+            "Configuração visual inválida."
+        )
+
+    titulo = config.get(
+        "titulo",
+        "Assinado digitalmente por",
+    )
+
+    if not isinstance(titulo, str):
+        raise ValueError(
+            "Título da assinatura inválido."
+        )
+
+    titulo = re.sub(
+        r"[\x00-\x1f\x7f]",
+        " ",
+        titulo,
+    ).strip()[:60]
+
+    config["titulo"] = (
+        titulo
+        or "Assinado digitalmente por"
+    )
+
+    for campo, padrao in (
+        ("mostrarData", True),
+        ("mostrarHora", False),
+        ("mostrarTipo", True),
+    ):
+        valor = config.get(
+            campo,
+            padrao,
+        )
+
+        if not isinstance(valor, bool):
+            raise ValueError(
+                "Configuração visual inválida."
+            )
+
+        config[campo] = valor
+
+    return config
+
+
 def validar_imagem_assinatura(arquivo):
-    if not arquivo or not arquivo.filename:
+    if (
+        not arquivo
+        or not arquivo.filename
+    ):
         return None
 
-    dados = arquivo.read()
+    dados = arquivo.read(
+        MAX_SIGNATURE_IMAGE_SIZE + 1
+    )
 
     if not dados:
         raise ValueError(
             "A imagem personalizada está vazia."
         )
 
-    if len(dados) > MAX_SIGNATURE_IMAGE_SIZE:
-        raise ValueError(
-            "A imagem personalizada deve ter no máximo 2 MB."
-        )
+    validar_tamanho_bytes(
+        dados,
+        MAX_SIGNATURE_IMAGE_SIZE,
+        "A imagem personalizada deve ter no máximo 2 MB.",
+    )
 
     try:
         imagem_teste = Image.open(
             io.BytesIO(dados)
         )
+
         imagem_teste.verify()
-    except (UnidentifiedImageError, OSError):
+    except (
+        UnidentifiedImageError,
+        OSError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+    ):
         raise ValueError(
             "A imagem personalizada não é um PNG ou JPEG válido."
         )
 
-    imagem = Image.open(
-        io.BytesIO(dados)
-    )
+    try:
+        imagem = Image.open(
+            io.BytesIO(dados)
+        )
 
-    if imagem.format not in ALLOWED_IMAGE_FORMATS:
+        imagem.load()
+    except (
+        UnidentifiedImageError,
+        OSError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+    ):
+        raise ValueError(
+            "Não foi possível processar a imagem personalizada."
+        )
+
+    if (
+        imagem.format
+        not in ALLOWED_IMAGE_FORMATS
+    ):
         raise ValueError(
             "Utilize somente imagens PNG ou JPEG."
         )
 
     if (
-        imagem.width > MAX_IMAGE_DIMENSION
-        or imagem.height > MAX_IMAGE_DIMENSION
+        imagem.width >
+        MAX_IMAGE_DIMENSION
+        or imagem.height >
+        MAX_IMAGE_DIMENSION
     ):
         raise ValueError(
             "A imagem personalizada possui resolução excessiva."
         )
 
-    if imagem.width < 10 or imagem.height < 10:
+    if (
+        imagem.width < 10
+        or imagem.height < 10
+    ):
         raise ValueError(
             "A imagem personalizada possui dimensões inválidas."
         )
 
     largura = imagem.width
     altura = imagem.height
-    proporcao = largura / altura
 
-    imagem = imagem.convert("RGBA")
-    imagem.thumbnail((1200, 1200))
+    imagem = imagem.convert(
+        "RGBA"
+    )
+
+    imagem.thumbnail(
+        (1200, 1200)
+    )
 
     buffer = io.BytesIO()
+
     imagem.save(
         buffer,
         format="PNG",
         optimize=True,
     )
+
     buffer.seek(0)
 
     return {
         "buffer": buffer,
         "width": largura,
         "height": altura,
-        "ratio": proporcao,
+        "ratio": largura / altura,
     }
 
 
@@ -264,23 +523,31 @@ def determinar_modo_imagem(
     if not imagem_info:
         return "default"
 
-    if modo_solicitado == "full":
-        return "full"
+    if modo_solicitado in {
+        "full",
+        "logo",
+    }:
+        return modo_solicitado
 
-    if modo_solicitado == "logo":
-        return "logo"
-
-    if imagem_info["ratio"] >= FULL_SIGNATURE_RATIO:
-        return "full"
-
-    return "logo"
+    return (
+        "full"
+        if imagem_info["ratio"]
+        >= FULL_SIGNATURE_RATIO
+        else "logo"
+    )
 
 
 def desenhar_identidade_padrao(c):
-    azul = HexColor("#2563EB")
-    azul_escuro = HexColor("#1E3A8A")
+    azul = HexColor(
+        "#2563EB"
+    )
+
+    azul_escuro = HexColor(
+        "#1E3A8A"
+    )
 
     c.setFillColor(azul)
+
     c.circle(
         25,
         34,
@@ -307,7 +574,10 @@ def desenhar_identidade_padrao(c):
         41,
     )
 
-    c.setStrokeColor(azul_escuro)
+    c.setStrokeColor(
+        azul_escuro
+    )
+
     c.setLineWidth(0.7)
 
     c.line(
@@ -322,31 +592,55 @@ def desenhar_imagem_logo(
     c,
     imagem_info,
 ):
-    buffer = imagem_info["buffer"]
+    buffer = imagem_info[
+        "buffer"
+    ]
 
     buffer.seek(0)
-    imagem = Image.open(buffer)
 
-    largura_original, altura_original = imagem.size
+    imagem = Image.open(
+        buffer
+    )
+
+    largura_original, altura_original = (
+        imagem.size
+    )
 
     max_width = 40
     max_height = 48
 
     escala = min(
-        max_width / largura_original,
-        max_height / altura_original,
+        max_width /
+        largura_original,
+        max_height /
+        altura_original,
     )
 
-    largura = largura_original * escala
-    altura = altura_original * escala
+    largura = (
+        largura_original *
+        escala
+    )
 
-    x = 5 + (
-        max_width - largura
-    ) / 2
+    altura = (
+        altura_original *
+        escala
+    )
 
-    y = 10 + (
-        max_height - altura
-    ) / 2
+    x = (
+        5
+        + (
+            max_width -
+            largura
+        ) / 2
+    )
+
+    y = (
+        10
+        + (
+            max_height -
+            altura
+        ) / 2
+    )
 
     buffer.seek(0)
 
@@ -379,49 +673,64 @@ def desenhar_imagem_completa(
     imagem_info,
     texto_data,
 ):
-    buffer = imagem_info["buffer"]
+    buffer = imagem_info[
+        "buffer"
+    ]
 
     buffer.seek(0)
-    imagem = Image.open(buffer)
 
-    largura_original, altura_original = imagem.size
+    imagem = Image.open(
+        buffer
+    )
+
+    largura_original, altura_original = (
+        imagem.size
+    )
 
     margem_x = 3
     margem_superior = 3
-
-    mostrar_data = bool(texto_data)
-
     faixa_inferior = (
-        11 if mostrar_data else 3
+        11 if texto_data else 3
     )
 
     area_width = (
-        STAMP_WIDTH
-        - margem_x * 2
+        STAMP_WIDTH -
+        margem_x * 2
     )
 
     area_height = (
-        STAMP_HEIGHT
-        - margem_superior
-        - faixa_inferior
+        STAMP_HEIGHT -
+        margem_superior -
+        faixa_inferior
     )
 
     escala = min(
-        area_width / largura_original,
-        area_height / altura_original,
+        area_width /
+        largura_original,
+        area_height /
+        altura_original,
     )
 
-    largura = largura_original * escala
-    altura = altura_original * escala
+    largura = (
+        largura_original *
+        escala
+    )
+
+    altura = (
+        altura_original *
+        escala
+    )
 
     x = (
-        STAMP_WIDTH - largura
+        STAMP_WIDTH -
+        largura
     ) / 2
 
     y = (
         faixa_inferior
         + (
-            area_height - altura
+            area_height -
+            altura
         ) / 2
     )
 
@@ -437,7 +746,7 @@ def desenhar_imagem_completa(
         mask="auto",
     )
 
-    if mostrar_data:
+    if texto_data:
         c.setStrokeColor(
             HexColor("#E2E8F0")
         )
@@ -472,8 +781,10 @@ def criar_carimbo_padrao(
     config,
     imagem_info=None,
 ):
-    caminho = criar_arquivo_temporario(
-        ".pdf"
+    caminho = (
+        criar_arquivo_temporario(
+            ".pdf"
+        )
     )
 
     c = canvas.Canvas(
@@ -501,32 +812,34 @@ def criar_carimbo_padrao(
             imagem_info,
         )
     else:
-        desenhar_identidade_padrao(c)
-
-    titulo = str(
-        config.get(
-            "titulo",
-            "Assinado digitalmente por",
+        desenhar_identidade_padrao(
+            c
         )
-    ).strip()[:60]
 
-    if not titulo:
-        titulo = "Assinado digitalmente por"
+    titulo = config[
+        "titulo"
+    ]
 
     mostrar_tipo = (
-        config.get("mostrarTipo", True) is True
+        config[
+            "mostrarTipo"
+        ]
     )
 
-    texto_data = formatar_data_assinatura(
-        config
+    texto_data = (
+        formatar_data_assinatura(
+            config
+        )
     )
 
-    titulo_exibicao, tamanho_titulo = ajustar_texto_largura(
-        titulo,
-        "Helvetica",
-        7.4,
-        5.5,
-        175,
+    titulo_exibicao, tamanho_titulo = (
+        ajustar_texto_largura(
+            titulo,
+            "Helvetica",
+            7.4,
+            5.5,
+            175,
+        )
     )
 
     c.setFillColor(black)
@@ -542,12 +855,14 @@ def criar_carimbo_padrao(
         titulo_exibicao,
     )
 
-    nome_exibicao, tamanho_nome = ajustar_texto_largura(
-        nome_assinante,
-        "Helvetica-Bold",
-        8.2,
-        5.5,
-        175,
+    nome_exibicao, tamanho_nome = (
+        ajustar_texto_largura(
+            nome_assinante,
+            "Helvetica-Bold",
+            8.2,
+            5.5,
+            175,
+        )
     )
 
     c.setFont(
@@ -579,7 +894,9 @@ def criar_carimbo_padrao(
 
     if mostrar_tipo:
         c.setFillColor(
-            HexColor("#475569")
+            HexColor(
+                "#475569"
+            )
         )
 
         c.setFont(
@@ -602,8 +919,10 @@ def criar_carimbo_imagem_completa(
     imagem_info,
     config,
 ):
-    caminho = criar_arquivo_temporario(
-        ".pdf"
+    caminho = (
+        criar_arquivo_temporario(
+            ".pdf"
+        )
     )
 
     c = canvas.Canvas(
@@ -625,14 +944,12 @@ def criar_carimbo_imagem_completa(
         stroke=0,
     )
 
-    texto_data = formatar_data_assinatura(
-        config
-    )
-
     desenhar_imagem_completa(
         c,
         imagem_info,
-        texto_data,
+        formatar_data_assinatura(
+            config
+        ),
     )
 
     c.save()
@@ -641,8 +958,10 @@ def criar_carimbo_imagem_completa(
 
 
 def obter_total_paginas(reader):
-    pages_obj = reader.root.get(
-        "/Pages"
+    pages_obj = (
+        reader.root.get(
+            "/Pages"
+        )
     )
 
     if hasattr(
@@ -653,9 +972,23 @@ def obter_total_paginas(reader):
             pages_obj.get_object()
         )
 
-    return int(
-        pages_obj.get("/Count")
+    total = int(
+        pages_obj.get(
+            "/Count"
+        )
     )
+
+    if total < 1:
+        raise ValueError(
+            "O documento não possui páginas válidas."
+        )
+
+    if total > 10_000:
+        raise ValueError(
+            "O documento possui páginas demais para processamento."
+        )
+
+    return total
 
 
 def obter_pagina_writer(
@@ -663,33 +996,42 @@ def obter_pagina_writer(
     page_index,
 ):
     resultado = (
-        writer.find_page_for_modification(
+        writer
+        .find_page_for_modification(
             page_index
         )
     )
 
-    if isinstance(
-        resultado,
-        tuple,
-    ):
-        page_ref = resultado[0]
-    else:
-        page_ref = resultado
+    page_ref = (
+        resultado[0]
+        if isinstance(
+            resultado,
+            tuple,
+        )
+        else resultado
+    )
 
     if hasattr(
         page_ref,
         "get_object",
     ):
-        return page_ref.get_object()
+        return (
+            page_ref
+            .get_object()
+        )
 
     return page_ref
 
 
 def obter_caixa_pagina(page):
-    box = page.get("/CropBox")
+    box = page.get(
+        "/CropBox"
+    )
 
     if box is None:
-        box = page.get("/MediaBox")
+        box = page.get(
+            "/MediaBox"
+        )
 
     if box is None:
         raise ValueError(
@@ -700,18 +1042,33 @@ def obter_caixa_pagina(page):
         box,
         "get_object",
     ):
-        box = box.get_object()
+        box = (
+            box.get_object()
+        )
 
     x0 = float(box[0])
     y0 = float(box[1])
     x1 = float(box[2])
     y1 = float(box[3])
 
+    largura = x1 - x0
+    altura = y1 - y0
+
+    if (
+        largura <= 0
+        or altura <= 0
+        or largura > 20_000
+        or altura > 20_000
+    ):
+        raise ValueError(
+            "Dimensões da página PDF inválidas."
+        )
+
     return (
         x0,
         y0,
-        x1 - x0,
-        y1 - y0,
+        largura,
+        altura,
     )
 
 
@@ -750,7 +1107,26 @@ def converter_posicao(
                 0,
             )
         )
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError,
+    ):
+        raise ValueError(
+            "Coordenadas de posicionamento inválidas."
+        )
+
+    valores = (
+        canvas_width,
+        canvas_height,
+        front_x,
+        front_y,
+    )
+
+    if any(
+        valor != valor
+        or abs(valor) > 1_000_000
+        for valor in valores
+    ):
         raise ValueError(
             "Coordenadas de posicionamento inválidas."
         )
@@ -764,22 +1140,26 @@ def converter_posicao(
         )
 
     ratio_x = (
-        pdf_width / canvas_width
+        pdf_width /
+        canvas_width
     )
 
     ratio_y = (
-        pdf_height / canvas_height
+        pdf_height /
+        canvas_height
     )
 
     x = (
         page_x0
-        + front_x * ratio_x
+        + front_x *
+        ratio_x
     )
 
     y = (
         page_y0
         + pdf_height
-        - front_y * ratio_y
+        - front_y *
+        ratio_y
         - STAMP_HEIGHT
     )
 
@@ -790,7 +1170,8 @@ def converter_posicao(
         page_x0
         + max(
             0,
-            pdf_width - STAMP_WIDTH,
+            pdf_width -
+            STAMP_WIDTH,
         )
     )
 
@@ -798,61 +1179,182 @@ def converter_posicao(
         page_y0
         + max(
             0,
-            pdf_height - STAMP_HEIGHT,
+            pdf_height -
+            STAMP_HEIGHT,
         )
     )
 
-    x = max(
-        min_x,
-        min(
-            x,
-            max_x,
+    return (
+        max(
+            min_x,
+            min(
+                x,
+                max_x,
+            ),
+        ),
+        max(
+            min_y,
+            min(
+                y,
+                max_y,
+            ),
         ),
     )
 
-    y = max(
-        min_y,
-        min(
-            y,
-            max_y,
-        ),
+
+@app.before_request
+def protecoes_antes_da_requisicao():
+    if (
+        request.path.startswith(
+            "/api/"
+        )
+        and not validar_origem()
+    ):
+        return jsonify({
+            "erro": "Origem da requisição não autorizada."
+        }), 403
+
+    if (
+        ENFORCE_HTTPS
+        and request.path.startswith(
+            "/api/"
+        )
+        and not request.is_secure
+    ):
+        return jsonify({
+            "erro": "HTTPS é obrigatório."
+        }), 403
+
+    if (
+        request.method == "POST"
+        and request.path ==
+        "/api/assinar"
+    ):
+        content_type = (
+            request.content_type
+            or ""
+        ).lower()
+
+        if not content_type.startswith(
+            "multipart/form-data"
+        ):
+            return jsonify({
+                "erro": "Content-Type inválido."
+            }), 415
+
+
+@app.after_request
+def adicionar_headers_seguranca(response):
+    response.headers[
+        "Cache-Control"
+    ] = (
+        "no-store, no-cache, "
+        "must-revalidate, max-age=0, private"
     )
 
-    return x, y
+    response.headers[
+        "Pragma"
+    ] = "no-cache"
+
+    response.headers[
+        "Expires"
+    ] = "0"
+
+    response.headers[
+        "X-Content-Type-Options"
+    ] = "nosniff"
+
+    response.headers[
+        "X-Frame-Options"
+    ] = "DENY"
+
+    response.headers[
+        "Referrer-Policy"
+    ] = "no-referrer"
+
+    response.headers[
+        "Permissions-Policy"
+    ] = (
+        "camera=(), microphone=(), "
+        "geolocation=(), payment=(), "
+        "usb=(), serial=()"
+    )
+
+    response.headers[
+        "Cross-Origin-Opener-Policy"
+    ] = "same-origin"
+
+    response.headers[
+        "X-Permitted-Cross-Domain-Policies"
+    ] = "none"
+
+    if (
+        IS_PRODUCTION
+        and request.is_secure
+    ):
+        response.headers[
+            "Strict-Transport-Security"
+        ] = (
+            "max-age=31536000; "
+            "includeSubDomains"
+        )
+
+    return response
 
 
-@app.get("/api/status")
+@app.get(
+    "/api/status"
+)
+@limiter.exempt
 def status():
     return jsonify({
         "status": "ok",
-        "servico": "assinador-digital",
+        "servico": (
+            "assinador-digital"
+        ),
     })
 
 
-@app.post("/api/assinar")
-@limiter.limit("5 per minute")
+@app.post(
+    "/api/assinar"
+)
+@limiter.limit(
+    "5 per minute;20 per hour"
+)
 def assinar_pdf():
     caminho_p12 = None
     caminho_carimbo = None
+    password = None
+    p12_bytes = None
 
     try:
-        if "documento" not in request.files:
+        documento = (
+            request.files.get(
+                "documento"
+            )
+        )
+
+        certificado = (
+            request.files.get(
+                "certificado"
+            )
+        )
+
+        if (
+            not documento
+            or not documento.filename
+        ):
             return jsonify({
                 "erro": "Documento PDF ausente."
             }), 400
 
-        if "certificado" not in request.files:
+        if (
+            not certificado
+            or not certificado.filename
+        ):
             return jsonify({
                 "erro": "Certificado digital ausente."
             }), 400
-
-        pdf_file = request.files[
-            "documento"
-        ]
-
-        p12_file = request.files[
-            "certificado"
-        ]
 
         password = request.form.get(
             "senha",
@@ -862,6 +1364,14 @@ def assinar_pdf():
         if not password:
             return jsonify({
                 "erro": "A senha do certificado é obrigatória."
+            }), 400
+
+        if (
+            len(password)
+            > MAX_PASSWORD_LENGTH
+        ):
+            return jsonify({
+                "erro": "Senha do certificado inválida."
             }), 400
 
         tipo_assinatura = (
@@ -882,13 +1392,20 @@ def assinar_pdf():
                 "erro": "Tipo de assinatura inválido."
             }), 400
 
-        posicao_str = request.form.get(
-            "posicao"
+        posicao_str = (
+            request.form.get(
+                "posicao",
+                "",
+            )
         )
 
-        if not posicao_str:
+        if (
+            not posicao_str
+            or len(posicao_str)
+            > MAX_JSON_FIELD_LENGTH
+        ):
             return jsonify({
-                "erro": "Posição da assinatura ausente."
+                "erro": "Posição da assinatura inválida."
             }), 400
 
         try:
@@ -905,76 +1422,68 @@ def assinar_pdf():
                 posicao,
                 dict,
             )
-            or not posicao.get(
+            or posicao.get(
                 "placed"
-            )
+            ) is not True
         ):
             return jsonify({
                 "erro": "A posição da assinatura não foi definida."
             }), 400
 
-        config = {}
-
-        config_str = request.form.get(
-            "visual"
+        config_str = (
+            request.form.get(
+                "visual",
+                "{}",
+            )
         )
 
-        if config_str:
-            try:
-                config = json.loads(
-                    config_str
-                )
-            except json.JSONDecodeError:
-                return jsonify({
-                    "erro": "Configuração visual inválida."
-                }), 400
+        if (
+            len(config_str)
+            > MAX_JSON_FIELD_LENGTH
+        ):
+            return jsonify({
+                "erro": "Configuração visual inválida."
+            }), 400
 
-            if not isinstance(
-                config,
-                dict,
-            ):
-                return jsonify({
-                    "erro": "Configuração visual inválida."
-                }), 400
+        try:
+            config = json.loads(
+                config_str
+            )
+        except json.JSONDecodeError:
+            return jsonify({
+                "erro": "Configuração visual inválida."
+            }), 400
 
-        # Valores padrão seguros.
-        config.setdefault(
-            "titulo",
-            "Assinado digitalmente por",
-        )
-
-        config.setdefault(
-            "mostrarData",
-            True,
-        )
-
-        config.setdefault(
-            "mostrarHora",
-            False,
-        )
-
-        config.setdefault(
-            "mostrarTipo",
-            True,
+        config = (
+            validar_config_visual(
+                config
+            )
         )
 
         imagem_info = None
-        modo_imagem = "auto"
-        modo_detectado = "default"
+        modo_detectado = (
+            "default"
+        )
 
         if tipo_assinatura == "image":
-            if (
-                "imagem_assinatura"
-                not in request.files
-            ):
+            imagem_arquivo = (
+                request.files.get(
+                    "imagem_assinatura"
+                )
+            )
+
+            if not imagem_arquivo:
                 return jsonify({
-                    "erro": "A imagem personalizada é obrigatória para este tipo de assinatura."
+                    "erro": (
+                        "A imagem personalizada é obrigatória "
+                        "para este tipo de assinatura."
+                    )
                 }), 400
 
-            imagem_info = validar_imagem_assinatura(
-                request.files[
-                    "imagem_assinatura"
-                ]
+            imagem_info = (
+                validar_imagem_assinatura(
+                    imagem_arquivo
+                )
             )
 
             modo_imagem = (
@@ -995,13 +1504,17 @@ def assinar_pdf():
                     "erro": "Modo da imagem inválido."
                 }), 400
 
-            modo_detectado = determinar_modo_imagem(
-                imagem_info,
-                modo_imagem,
+            modo_detectado = (
+                determinar_modo_imagem(
+                    imagem_info,
+                    modo_imagem,
+                )
             )
 
         pdf_bytes_raw = (
-            pdf_file.read()
+            documento.read(
+                MAX_PDF_SIZE + 1
+            )
         )
 
         if not pdf_bytes_raw:
@@ -1009,9 +1522,18 @@ def assinar_pdf():
                 "erro": "O documento PDF está vazio."
             }), 400
 
+        validar_tamanho_bytes(
+            pdf_bytes_raw,
+            MAX_PDF_SIZE,
+            "O documento PDF deve ter no máximo 25 MB.",
+        )
+
+        # Só tolera pequeno prefixo antes de %PDF.
         inicio_pdf = (
             pdf_bytes_raw.find(
-                b"%PDF"
+                b"%PDF",
+                0,
+                1024,
             )
         )
 
@@ -1020,20 +1542,39 @@ def assinar_pdf():
                 "erro": "O documento enviado não possui cabeçalho PDF válido."
             }), 400
 
-        pdf_stream = io.BytesIO(
+        pdf_bytes = (
             pdf_bytes_raw[
                 inicio_pdf:
             ]
         )
 
+        if b"%%EOF" not in (
+            pdf_bytes[-8192:]
+        ):
+            return jsonify({
+                "erro": "O arquivo não possui uma estrutura PDF final válida."
+            }), 400
+
+        pdf_stream = io.BytesIO(
+            pdf_bytes
+        )
+
         p12_bytes = (
-            p12_file.read()
+            certificado.read(
+                MAX_CERTIFICATE_SIZE + 1
+            )
         )
 
         if not p12_bytes:
             return jsonify({
                 "erro": "O certificado enviado está vazio."
             }), 400
+
+        validar_tamanho_bytes(
+            p12_bytes,
+            MAX_CERTIFICATE_SIZE,
+            "O certificado deve ter no máximo 5 MB.",
+        )
 
         caminho_p12 = (
             criar_arquivo_temporario(
@@ -1049,12 +1590,24 @@ def assinar_pdf():
                 p12_bytes
             )
 
+            arquivo_p12.flush()
+
+            try:
+                os.fsync(
+                    arquivo_p12.fileno()
+                )
+            except OSError:
+                pass
+
         signer = (
-            SimpleSigner.load_pkcs12(
-                pfx_file=caminho_p12,
-                passphrase=password.encode(
-                    "utf-8"
-                ),
+            SimpleSigner
+            .load_pkcs12(
+                pfx_file=
+                    caminho_p12,
+                passphrase=
+                    password.encode(
+                        "utf-8"
+                    ),
             )
         )
 
@@ -1071,6 +1624,8 @@ def assinar_pdf():
         )
 
         caminho_p12 = None
+        p12_bytes = None
+        password = None
 
         nome_assinante = (
             obter_nome_assinante(
@@ -1097,14 +1652,18 @@ def assinar_pdf():
                     1,
                 )
             )
-        except (TypeError, ValueError):
+        except (
+            TypeError,
+            ValueError,
+        ):
             return jsonify({
                 "erro": "Número da página inválido."
             }), 400
 
-        if (
-            page_number < 1
-            or page_number > total_pages
+        if not (
+            1 <=
+            page_number <=
+            total_pages
         ):
             return jsonify({
                 "erro": (
@@ -1126,9 +1685,11 @@ def assinar_pdf():
             )
         )
 
-        page = obter_pagina_writer(
-            writer,
-            page_index,
+        page = (
+            obter_pagina_writer(
+                writer,
+                page_index,
+            )
         )
 
         (
@@ -1148,35 +1709,13 @@ def assinar_pdf():
             pdf_height,
         )
 
-        if tipo_assinatura == "image":
-            if modo_detectado == "full":
-                caminho_carimbo = (
-                    criar_carimbo_imagem_completa(
-                        imagem_info,
-                        config,
-                    )
-                )
-            else:
-                caminho_carimbo = (
-                    criar_carimbo_padrao(
-                        nome_assinante,
-                        config,
-                        imagem_info,
-                    )
-                )
-
-        elif tipo_assinatura == "simple":
-            caminho_carimbo = (
-                criar_carimbo_padrao(
-                    nome_assinante,
-                    config,
-                    None,
-                )
-            )
-
-        else:
-            # Padrão.
-            config["titulo"] = (
+        if (
+            tipo_assinatura ==
+            "standard"
+        ):
+            config[
+                "titulo"
+            ] = (
                 "Assinado digitalmente por"
             )
 
@@ -1184,12 +1723,44 @@ def assinar_pdf():
                 criar_carimbo_padrao(
                     nome_assinante,
                     config,
-                    None,
+                )
+            )
+
+        elif (
+            tipo_assinatura ==
+            "simple"
+        ):
+            caminho_carimbo = (
+                criar_carimbo_padrao(
+                    nome_assinante,
+                    config,
+                )
+            )
+
+        elif (
+            modo_detectado ==
+            "full"
+        ):
+            caminho_carimbo = (
+                criar_carimbo_imagem_completa(
+                    imagem_info,
+                    config,
+                )
+            )
+
+        else:
+            caminho_carimbo = (
+                criar_carimbo_padrao(
+                    nome_assinante,
+                    config,
+                    imagem_info,
                 )
             )
 
         estilo_carimbo = (
-            stamp.StaticStampStyle.from_pdf_file(
+            stamp
+            .StaticStampStyle
+            .from_pdf_file(
                 caminho_carimbo,
                 page_ix=0,
                 border_width=0,
@@ -1197,14 +1768,19 @@ def assinar_pdf():
         )
 
         field_name = (
-            f"Assinatura_{uuid.uuid4().hex[:12]}"
+            "Assinatura_"
+            + uuid.uuid4().hex[
+                :12
+            ]
         )
 
         append_signature_field(
             writer,
             SigFieldSpec(
-                sig_field_name=field_name,
-                on_page=page_index,
+                sig_field_name=
+                    field_name,
+                on_page=
+                    page_index,
                 box=(
                     x,
                     y,
@@ -1215,18 +1791,26 @@ def assinar_pdf():
         )
 
         metadata = (
-            signers.PdfSignatureMetadata(
-                field_name=field_name,
-                md_algorithm="sha256",
-                subfilter=SigSeedSubFilter.PADES,
+            signers
+            .PdfSignatureMetadata(
+                field_name=
+                    field_name,
+                md_algorithm=
+                    "sha256",
+                subfilter=
+                    SigSeedSubFilter
+                    .PADES,
             )
         )
 
         pdf_signer = (
             signers.PdfSigner(
-                signature_meta=metadata,
-                signer=signer,
-                stamp_style=estilo_carimbo,
+                signature_meta=
+                    metadata,
+                signer=
+                    signer,
+                stamp_style=
+                    estilo_carimbo,
             )
         )
 
@@ -1246,27 +1830,43 @@ def assinar_pdf():
 
         response = send_file(
             output_stream,
-            mimetype="application/pdf",
+            mimetype=
+                "application/pdf",
             as_attachment=True,
-            download_name="documento_assinado.pdf",
+            download_name=
+                "documento_assinado.pdf",
+            max_age=0,
         )
 
-        if tipo_assinatura == "image":
+        response.headers[
+            "Content-Security-Policy"
+        ] = (
+            "default-src 'none'; "
+            "sandbox"
+        )
+
+        if (
+            tipo_assinatura ==
+            "image"
+        ):
             response.headers[
                 "X-Signature-Image-Mode"
-            ] = modo_detectado
+            ] = (
+                modo_detectado
+            )
 
         return response
 
-    except ValueError as e:
+    except ValueError as erro:
         return jsonify({
-            "erro": str(e)
+            "erro": str(erro)
         }), 400
 
-    except Exception as e:
+    except Exception:
+        # Não registra senha, formulário,
+        # certificado ou conteúdo do PDF.
         app.logger.exception(
-            "Erro ao assinar PDF: %r",
-            e,
+            "Falha interna durante assinatura do PDF."
         )
 
         return jsonify({
@@ -1278,6 +1878,9 @@ def assinar_pdf():
         }), 500
 
     finally:
+        password = None
+        p12_bytes = None
+
         remover_arquivo(
             caminho_p12
         )
@@ -1287,19 +1890,36 @@ def assinar_pdf():
         )
 
 
+@app.errorhandler(400)
+def erro_400(_):
+    return jsonify({
+        "erro": "Requisição inválida."
+    }), 400
+
+
 @app.errorhandler(413)
 def arquivo_muito_grande(_):
     return jsonify({
         "erro": (
-            "O envio excede o limite máximo "
-            "permitido de 30 MB."
+            "O envio excede o limite "
+            "máximo permitido."
         )
     }), 413
 
 
+@app.errorhandler(429)
+def muitas_requisicoes(_):
+    return jsonify({
+        "erro": (
+            "Muitas solicitações. "
+            "Aguarde antes de tentar novamente."
+        )
+    }), 429
+
+
 if __name__ == "__main__":
     app.run(
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=int(
             os.environ.get(
                 "PORT",
