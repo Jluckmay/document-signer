@@ -1204,10 +1204,11 @@ def converter_posicao(
 
 @app.before_request
 def protecoes_antes_da_requisicao():
+    if request.path == "/api/status" and request.method == "GET":
+        return None
+
     if (
-        request.path.startswith(
-            "/api/"
-        )
+        request.path.startswith("/api/")
         and not validar_origem()
     ):
         return jsonify({
@@ -1216,9 +1217,7 @@ def protecoes_antes_da_requisicao():
 
     if (
         ENFORCE_HTTPS
-        and request.path.startswith(
-            "/api/"
-        )
+        and request.path.startswith("/api/")
         and not request.is_secure
     ):
         return jsonify({
@@ -1227,21 +1226,16 @@ def protecoes_antes_da_requisicao():
 
     if (
         request.method == "POST"
-        and request.path ==
-        "/api/assinar"
+        and request.path == "/api/assinar"
     ):
         content_type = (
-            request.content_type
-            or ""
+            request.content_type or ""
         ).lower()
 
-        if not content_type.startswith(
-            "multipart/form-data"
-        ):
+        if not content_type.startswith("multipart/form-data"):
             return jsonify({
                 "erro": "Content-Type inválido."
             }), 415
-
 
 @app.after_request
 def adicionar_headers_seguranca(response):
