@@ -1236,6 +1236,13 @@ def protecoes_antes_da_requisicao():
             return jsonify({
                 "erro": "Content-Type inválido."
             }), 415
+        
+@app.route("/api/status", methods=["GET"])
+def status():
+    return jsonify({
+        "status": "ok",
+        "servico": "assinador-digital"
+    }), 200
 
 @app.after_request
 def adicionar_headers_seguranca(response):
