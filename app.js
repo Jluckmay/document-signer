@@ -9,7 +9,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
  */
 const API_BASE_URL =
     window.location.hostname.includes("github.io")
-        ? "https://seu-projeto-backend.onrender.com"
+        ? "https://document-signer-u7ie.onrender.com/"
         : "http://127.0.0.1:5000";
 
 const STAMP_WIDTH = 240;
