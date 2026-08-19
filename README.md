@@ -453,6 +453,16 @@ pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital des
 ```
 
 Depois de validar DLLs, plugins Qt, pyHanko, PyMuPDF e demais dependências, pode-se avaliar o modo `--onefile`.
+
+
+## Versão Standalone
+
+A versão standalone para Windows está disponível através do GitHub Releases.
+
+**[⬇️ Baixar a versão Desktop mais recente](../../releases/latest)**
+
+> A versão Desktop processa o PDF, o certificado e a senha localmente no computador e não precisa utilizar o backend remoto do projeto.
+
 ---
 
 ## ♿ Acessibilidade
@@ -932,6 +942,15 @@ pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital des
 ```
 
 After validating PySide6, PyMuPDF, pyHanko and other native dependencies, `--onefile` can be evaluated.
+
+
+## Standalone Version
+
+A standalone Windows version is available through GitHub Releases.
+
+**[⬇️ Download the latest Desktop release](../../releases/latest)**
+
+> The Desktop version processes the PDF, certificate and password locally on your computer and does not require the project's remote backend.
 
 ---
 
