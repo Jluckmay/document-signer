@@ -6,270 +6,235 @@
 [![pyHanko](https://img.shields.io/badge/pyHanko-0.36.2-blue.svg)](https://www.pyhanko.eu/)
 [![PAdES](https://img.shields.io/badge/Signature-PAdES-green.svg)](https://en.wikipedia.org/wiki/PAdES)
 
-**[🇧🇷 Português](#-sobre-o-projeto) | [🇺🇸 English](#-about-the-project)**
+**[🇧🇷 Português](#-português) | [🇺🇸 English](#-english)**
 
 ---
 
 # 🇧🇷 Português
 
-## 🔏 Sobre o Projeto
+## 🔏 Sobre o projeto
 
-O **Assinador Digital PAdES** é uma aplicação web de código aberto para assinatura criptográfica de documentos PDF utilizando certificados digitais em arquivos `.p12` ou `.pfx`.
+O **Assinador Digital PAdES** é um projeto de código aberto para assinatura criptográfica de documentos PDF utilizando certificados digitais PKCS#12 em arquivos `.p12` ou `.pfx`.
 
-O backend utiliza **Flask** e **pyHanko** para produzir assinaturas digitais no padrão **PAdES (PDF Advanced Electronic Signatures)**. O frontend utiliza **PDF.js** para renderização do documento, navegação entre páginas e posicionamento visual da assinatura.
+O projeto oferece duas formas de uso:
 
-A aplicação é compatível com certificados PKCS#12 suportados pela infraestrutura criptográfica utilizada pelo `pyHanko`, incluindo certificados pessoais **ICPEdu**, certificados **ICP-Brasil** e outros certificados compatíveis.
+- **Versão Web:** frontend estático com HTML, CSS, JavaScript e PDF.js, conectado a um backend Flask hospedável no Render;
+- **Versão Desktop:** aplicação local em PySide6, sem navegador e sem necessidade de enviar documento, certificado ou senha para um servidor remoto.
 
-> **Importante:** a representação visual presente no documento é independente da assinatura criptográfica. Imagens, logotipos e carimbos visuais não substituem o certificado digital nem determinam, isoladamente, a validade da assinatura.
+As duas versões utilizam **pyHanko** para produzir assinaturas digitais no padrão **PAdES (PDF Advanced Electronic Signatures)**.
+
+> **Importante:** a aparência visual inserida no PDF é independente da assinatura criptográfica. Imagens, logotipos e carimbos visuais não substituem o certificado digital nem determinam, isoladamente, a validade da assinatura.
 
 ---
 
-## ✨ Recursos
+## ✨ Recursos principais
 
-### 🔐 Assinatura Digital PAdES
+### 🔐 Assinatura PAdES
 
-- assinatura criptográfica de documentos PDF utilizando `pyHanko`;
+- assinatura criptográfica de documentos PDF com `pyHanko`;
 - suporte a certificados `.p12` e `.pfx`;
 - algoritmo de resumo SHA-256;
-- assinatura no padrão PAdES;
-- preservação do documento por atualização incremental;
+- atualização incremental do PDF;
 - campos de assinatura com identificadores únicos;
 - nome do titular obtido diretamente do certificado;
-- remoção do CPF da representação visual quando presente no `Common Name`.
+- remoção do CPF apenas da **aparência visual** quando ele estiver anexado ao `Common Name` do certificado;
+- campo visual de assinatura com **240 × 68 pontos PDF**.
 
-A remoção do CPF ocorre **somente na representação visual** e não modifica o certificado, seus atributos ou a assinatura criptográfica.
+### 🎨 Aparências disponíveis
 
-### 📄 Visualização e Posicionamento
+A aplicação oferece três tipos de aparência:
 
-- renderização de PDFs utilizando **PDF.js**;
-- PDF.js hospedado junto à aplicação, sem dependência de CDN para sua execução;
-- suporte a documentos com múltiplas páginas;
-- posicionamento da assinatura diretamente sobre o documento;
-- conversão das coordenadas da interface para coordenadas reais do PDF;
-- navegação entre páginas;
-- avanço para a próxima página ao chegar ao final da página atual;
-- redimensionamento proporcional da visualização;
-- manutenção da proporção original das páginas;
-- campo visual da assinatura com dimensões de **240 × 68 pontos PDF**.
+1. **Padrão** — identidade visual própria do Assinador Digital;
+2. **Customizada simples** — permite personalizar o texto e as informações exibidas;
+3. **Customizada com imagem** — permite utilizar um logotipo/imagem lateral ou uma imagem completa de assinatura.
 
----
-
-## 🎨 Tipos de Aparência da Assinatura
-
-A aplicação oferece três opções de representação visual.
-
-### 1. Padrão
-
-Utiliza a identidade visual própria do **Assinador Digital**.
-
-Pode exibir:
-
-- ícone próprio do projeto;
-- nome do titular do certificado;
-- data da assinatura;
-- hora da assinatura, opcional;
-- indicação de assinatura digital PAdES.
-
-### 2. Customizada Simples
-
-Permite personalizar a representação visual sem utilizar uma imagem completa.
-
-Pode incluir:
-
-- título personalizado;
-- nome do titular;
-- data;
-- hora opcional;
-- indicação de assinatura digital PAdES.
-
-### 3. Customizada com Imagem
-
-Permite utilizar uma imagem personalizada na representação visual.
-
-Formatos aceitos:
+Imagens personalizadas aceitas:
 
 - PNG;
-- JPEG/JPG.
+- JPEG/JPG;
+- até **2 MB**;
+- resolução máxima de **4000 × 4000 pixels**.
 
-A imagem pode ser utilizada como:
+O sistema pode detectar automaticamente se uma imagem horizontal deve ser tratada como uma assinatura completa ou como logotipo/imagem lateral.
 
-- logotipo ou imagem lateral;
-- imagem completa de assinatura.
+### 📅 Data e hora
 
-O sistema também pode detectar automaticamente o modo mais adequado com base nas características e proporções da imagem.
-
-Imagens horizontais compatíveis com o formato de uma assinatura completa podem ser redimensionadas proporcionalmente para ocupar praticamente toda a área disponível.
-
----
-
-## 🖼️ Imagens Personalizadas
-
-As imagens enviadas pelo usuário:
-
-- são utilizadas somente na representação visual;
-- não substituem a assinatura criptográfica;
-- não substituem o certificado digital;
-- possuem limite de **2 MB**;
-- são validadas pelo backend utilizando **Pillow**;
-- aceitam apenas os formatos permitidos pela aplicação;
-- possuem limite de resolução;
-- mantêm sua proporção durante o redimensionamento.
-
-Para uma imagem tratada como assinatura completa, a aplicação pode utilizar praticamente toda a área disponível, reservando espaço para as informações temporais quando necessário.
-
-O campo visual permanece com:
-
-```text
-240 × 68 pontos PDF
-```
-
----
-
-## 📅 Data e Hora
-
-A exibição da **data** é habilitada por padrão.
-
-A exibição da **hora** é opcional e permanece **desmarcada por padrão**.
-
-Exemplos:
+A data é exibida por padrão. A hora é opcional e permanece desmarcada inicialmente.
 
 ```text
 Data ✓ | Hora ✗ → 19/08/2026
-Data ✓ | Hora ✓ → 19/08/2026 02:00
-Data ✗ | Hora ✓ → 02:00
+Data ✓ | Hora ✓ → 19/08/2026 04:25
+Data ✗ | Hora ✓ → 04:25
 Data ✗ | Hora ✗ → nenhuma informação temporal
 ```
 
-O timezone padrão do backend é:
+Na versão Web, o timezone pode ser configurado com `APP_TIMEZONE`. Na versão Desktop, o padrão atual é `America/Sao_Paulo`, com fallback para UTC.
+
+---
+
+## 🌐 Versão Web
+
+A versão Web utiliza:
+
+- HTML5;
+- CSS3;
+- JavaScript;
+- PDF.js hospedado localmente no próprio projeto;
+- Flask;
+- Gunicorn;
+- pyHanko;
+- ReportLab;
+- Pillow;
+- Flask-Limiter;
+- Redis compatível para Rate Limiting compartilhado em produção.
+
+### Recursos do frontend
+
+- visualização do PDF com PDF.js;
+- suporte a documentos multipágina;
+- posicionamento visual da assinatura;
+- avanço automático para a próxima página ao chegar ao fim do scroll;
+- interface em Português e Inglês;
+- idioma inicial baseado no navegador/sistema;
+- tema claro/escuro com preferência inicial do sistema;
+- suporte a leitores de tela com ARIA, regiões `aria-live`, mensagens de alerta e navegação por teclado;
+- Content Security Policy (CSP);
+- PDF.js sem dependência de CDN durante o uso;
+- indicador de disponibilidade do backend.
+
+### Acordar o backend do Render
+
+Ao carregar a página, o frontend chama:
 
 ```text
-America/Sao_Paulo
+GET /api/status
 ```
 
-Ele pode ser alterado por meio da variável:
+Esse pedido é feito em segundo plano enquanto o usuário seleciona o PDF e posiciona a assinatura. Em serviços do Render que entram em suspensão por inatividade, isso permite iniciar o backend antes de o usuário chegar à etapa final de assinatura.
 
-```env
-APP_TIMEZONE
-```
-
----
-
-## 🌐 Interface Bilíngue
-
-A interface possui suporte a:
-
-- 🇧🇷 Português;
-- 🇺🇸 Inglês.
-
-Na primeira utilização, a aplicação utiliza o idioma configurado no navegador/sistema para determinar o idioma inicial.
-
-O usuário pode alterar manualmente o idioma utilizando o controle disponível na interface.
-
-A preferência escolhida pode ser armazenada localmente pelo navegador.
-
-Além dos textos visíveis, a internacionalização também pode ser aplicada às informações de acessibilidade, como:
-
-- descrições ARIA;
-- paginação;
-- mensagens de status;
-- mensagens de erro;
-- descrição das etapas;
-- controles de navegação.
-
----
-
-## 🌓 Tema Claro e Escuro
-
-Por padrão, a aplicação segue a preferência de aparência do sistema operacional/navegador:
+A interface pode indicar os estados:
 
 ```text
-Sistema em modo claro  → tema claro
-Sistema em modo escuro → tema escuro
+🟡 Iniciando serviço de assinatura...
+🟢 Serviço de assinatura disponível
+🔴 Serviço de assinatura indisponível
 ```
 
-O usuário também pode alterar manualmente o tema.
-
-A preferência selecionada pode ser armazenada localmente pelo navegador.
+A rota `/api/status` é isenta da validação de `Origin` e do Rate Limiting para permitir health checks e inicialização do serviço.
 
 ---
 
-## ♿ Acessibilidade
+## 💻 Versão Desktop
 
-A interface inclui recursos de acessibilidade, como:
+A versão Desktop está em:
 
-- suporte a leitores de tela;
-- regiões `aria-live`;
-- mensagens com `role="alert"`;
-- labels associados aos campos;
-- descrições ARIA;
-- informações acessíveis sobre as etapas;
-- navegação por teclado;
-- indicação visual de foco;
-- link para pular diretamente ao conteúdo principal;
-- informações acessíveis de paginação;
-- descrição da área de visualização do PDF;
-- anúncios de mudanças relevantes da interface.
+```text
+desktop/local.py
+```
+
+Ela utiliza **PySide6** para uma interface gráfica nativa e **PyMuPDF** para renderização local dos PDFs.
+
+### Características
+
+- não utiliza Flask;
+- não utiliza navegador;
+- não depende do Render;
+- não depende de GitHub Pages;
+- documento, certificado, senha e imagem permanecem no computador do usuário;
+- renderização do PDF em alta resolução com fator interno de qualidade `2.5`;
+- navegação multipágina;
+- avanço automático para a próxima página ao chegar ao fim do scroll;
+- posicionamento visual da assinatura;
+- posicionamento acessível opcional por página e região predefinida;
+- toggle para exibir ou ocultar os controles de posicionamento acessível;
+- Português/Inglês;
+- tema inicial baseado no sistema;
+- alternância manual de tema corrigida por estado interno explícito;
+- etapa de configuração adaptada ao tipo de aparência selecionado;
+- assinatura executada em `QThread` para evitar bloquear a interface;
+- seleção nativa de PDF, certificado, imagem e local de salvamento;
+- possibilidade de empacotamento futuro como `.exe`.
+
+### Posicionamento acessível
+
+O usuário pode ativar:
+
+```text
+☑ Utilizar posicionamento acessível
+```
+
+E selecionar, sem depender do mouse:
+
+```text
+Página: 1
+Posição: Canto superior esquerdo
+         Canto superior direito
+         Canto inferior esquerdo
+         Canto inferior direito
+         Centro
+```
+
+Isso complementa o posicionamento visual por clique e melhora a utilização com teclado e tecnologias assistivas.
+
+> A acessibilidade deve ser validada também com leitores de tela reais, como NVDA no Windows. O uso de widgets Qt nativos e nomes/descritivos acessíveis fornece a base, mas não substitui testes práticos.
 
 ---
 
-## 🛡️ Segurança e Privacidade
+## 🛡️ Segurança e privacidade
 
-O projeto utiliza diferentes camadas de proteção no frontend e no backend.
+### Versão Web
 
-### Backend
+O backend inclui medidas como:
 
-Entre as medidas implementadas estão:
-
-- processamento controlado de certificados PKCS#12;
-- utilização temporária do arquivo `.p12`/`.pfx`;
-- remoção do certificado temporário após o carregamento;
-- remoção dos arquivos temporários utilizados para gerar a aparência;
-- limite de tamanho das requisições;
-- limite específico para imagens;
-- validação de imagens com Pillow;
-- restrição dos formatos de imagem;
+- limite de tamanho da requisição;
+- limite de PDF, certificado e imagem;
+- validação de PDF e imagem;
+- restrição de formatos de imagem;
 - limite de resolução;
-- validação do documento PDF;
-- validação da página selecionada;
-- validação das coordenadas;
+- arquivos temporários com limpeza posterior;
 - CORS configurável;
-- verificação da origem das requisições;
-- possibilidade de exigir HTTPS em produção;
+- validação explícita do header `Origin`;
+- opção de exigir HTTPS em produção;
 - Rate Limiting;
-- suporte a Redis para armazenamento compartilhado dos limites;
-- identificadores únicos para campos de assinatura;
-- tratamento controlado de erros;
-- headers HTTP adicionais de segurança.
+- suporte a Redis para limites compartilhados;
+- `TRUSTED_HOSTS` configurável;
+- headers HTTP adicionais de segurança;
+- respostas sensíveis com cache desabilitado;
+- tratamento controlado de erros.
 
-### Frontend
+No frontend:
 
-O frontend também adota medidas como:
+- CSP restringe scripts, estilos e conexões;
+- PDF.js é hospedado localmente;
+- `fetch` usa `credentials: "omit"`;
+- campos sensíveis são limpos quando necessário;
+- requisições possuem timeout;
+- o backend permitido é definido em `connect-src`.
 
-- **Content Security Policy (CSP)**;
-- PDF.js hospedado localmente;
-- restrição das origens permitidas para comunicação com o backend;
-- ausência de envio do certificado para serviços de terceiros pelo fluxo normal da aplicação;
-- limpeza dos campos sensíveis quando necessário;
-- timeout das requisições;
-- validações antes do envio.
+> CORS e `Origin` ajudam a restringir o uso comum da API por outros sites, mas não constituem autenticação. Um cliente HTTP externo pode falsificar o header `Origin`.
 
-### Limites padrão
+### Versão Desktop
+
+Na versão local não existe comunicação cliente-servidor. O fluxo é:
 
 ```text
-Requisição: até 30 MB
-Imagem personalizada: até 2 MB
-Resolução da imagem: até 4000 × 4000 pixels
-Rota de assinatura: 5 requisições por minuto por IP
-Limite geral: 200 requisições por dia
+PDF + certificado + senha
+          ↓
+     processamento local
+          ↓
+       pyHanko
+          ↓
+      PDF assinado
 ```
 
-> Para produção com múltiplos processos ou instâncias, recomenda-se utilizar um armazenamento compartilhado para o Rate Limiting, como Redis, em vez de `memory://`.
+Mesmo localmente são mantidos:
 
-### Senha do certificado
-
-A senha do certificado é necessária para desbloquear a chave privada contida no arquivo PKCS#12 durante o processo de assinatura.
-
-A aplicação deve ser publicada exclusivamente através de **HTTPS** em produção para proteger a comunicação entre cliente e servidor.
+- limites de tamanho;
+- validação de PDF;
+- validação de PNG/JPEG;
+- limite de resolução de imagem;
+- limpeza de arquivos temporários;
+- senha mantida apenas durante a operação de assinatura.
 
 ---
 
@@ -277,120 +242,82 @@ A aplicação deve ser publicada exclusivamente através de **HTTPS** em produç
 
 O **[ICPEdu - Certificado Pessoal](https://pessoal.icpedu.rnp.br/)** é um serviço disponibilizado pela Rede Nacional de Ensino e Pesquisa (RNP) para usuários elegíveis de instituições participantes.
 
-Certificados pessoais ICPEdu disponibilizados em formato PKCS#12 (`.p12`/`.pfx`) podem ser utilizados pelo projeto quando compatíveis com a infraestrutura criptográfica utilizada.
+Certificados pessoais ICPEdu disponibilizados em formato PKCS#12 (`.p12`/`.pfx`) podem ser utilizados no projeto quando compatíveis com a infraestrutura criptográfica utilizada pelo `pyHanko`.
 
 👉 **[Acessar o Certificado Pessoal ICPEdu](https://pessoal.icpedu.rnp.br/)**
 
 ### Aviso sobre identidade visual
 
-Este projeto utiliza **identidade visual própria** para a representação das assinaturas.
+Este projeto utiliza **identidade visual própria** para suas aparências de assinatura.
 
-O projeto não depende da identidade visual oficial da RNP/ICPEdu para gerar seus carimbos.
-
-Utilizar um certificado ICPEdu neste projeto **não significa que o documento tenha sido assinado pelo sistema oficial da RNP**.
-
-ICPEdu e RNP são referências aos respectivos serviços e organizações e não indicam afiliação ou endosso deste projeto.
+Utilizar um certificado ICPEdu neste projeto **não significa que o documento tenha sido assinado pelo sistema oficial da RNP**. As referências a ICPEdu e RNP identificam os respectivos serviços e organizações e não indicam afiliação ou endosso deste projeto.
 
 ---
 
 ## 🏗️ Arquitetura
 
 ```text
-┌──────────────────────────────────┐
-│             Frontend             │
-│                                  │
-│ HTML + CSS + JavaScript          │
-│ PDF.js local                     │
-│                                  │
-│ • Visualização do PDF            │
-│ • Posicionamento                 │
-│ • Navegação entre páginas        │
-│ • Escolha da aparência           │
-│ • Imagens personalizadas         │
-│ • Tema claro/escuro              │
-│ • Português/Inglês               │
-│ • Acessibilidade                 │
-└────────────────┬─────────────────┘
-                 │
-                 │ HTTPS
-                 │ multipart/form-data
-                 ▼
-┌──────────────────────────────────┐
-│              Backend             │
-│                                  │
-│ Gunicorn                         │
-│ Flask                            │
-│ pyHanko                          │
-│ ReportLab                        │
-│ Pillow                           │
-│ Flask-Limiter / Redis            │
-│                                  │
-│ • Validação                      │
-│ • Certificado PKCS#12            │
-│ • Aparência visual               │
-│ • Assinatura PAdES               │
-└────────────────┬─────────────────┘
-                 │
-                 ▼
-          PDF assinado
+Assinador Digital PAdES
+│
+├── 🌐 Versão Web
+│   │
+│   ├── GitHub Pages / frontend estático
+│   │   ├── index.html
+│   │   ├── app.js
+│   │   ├── styles.css
+│   │   └── vendor/pdfjs/
+│   │
+│   └── Render / backend
+│       ├── Flask
+│       ├── Gunicorn
+│       ├── pyHanko
+│       ├── ReportLab
+│       ├── Pillow
+│       └── Flask-Limiter / Redis
+│
+└── 💻 Versão Desktop
+    ├── PySide6
+    ├── PyMuPDF
+    ├── pyHanko
+    ├── ReportLab
+    └── Pillow
 ```
 
 ---
 
-## 🧰 Tecnologias
-
-### Backend
-
-- Python;
-- Flask;
-- Flask-Cors;
-- Flask-Limiter;
-- Redis;
-- pyHanko;
-- ReportLab;
-- Pillow;
-- Gunicorn.
-
-### Frontend
-
-- HTML5;
-- CSS3;
-- JavaScript;
-- PDF.js.
-
-### Implantação
-
-- GitHub Pages — frontend;
-- Render — backend;
-- Redis — armazenamento compartilhado para Rate Limiting em produção.
-
----
-
-## 📁 Estrutura do Projeto
+## 📁 Estrutura do projeto
 
 ```text
-projeto/
-├── app.py
-├── gunicorn.conf.py
-├── requirements.txt
+project/
 ├── index.html
 ├── app.js
 ├── styles.css
 ├── README.md
 ├── LICENSE
-└── vendor/
-    └── pdfjs/
-        ├── pdf.min.js
-        └── pdf.worker.min.js
+├── .gitignore
+│
+├── vendor/
+│   └── pdfjs/
+│       ├── pdf.min.js
+│       └── pdf.worker.min.js
+│
+├── backend/
+│   ├── app.py
+│   ├── gunicorn.conf.py
+│   └── requirements.txt
+│
+└── desktop/
+    ├── local.py
+    └── requirements.txt
 ```
-
-O PDF.js é armazenado junto ao frontend para evitar a necessidade de carregar o código da biblioteca diretamente de uma CDN durante o uso da aplicação.
 
 ---
 
 ## 📦 Dependências
 
-O backend utiliza:
+### Backend Web
+
+`backend/requirements.txt`:
 
 ```txt
 Flask==3.1.3
@@ -402,15 +329,23 @@ reportlab==5.0.0
 Pillow==11.3.0
 ```
 
-Instale utilizando:
+### Desktop
 
-```bash
-pip install -r requirements.txt
+`desktop/requirements.txt`:
+
+```txt
+PySide6
+PyMuPDF
+pyHanko==0.36.2
+reportlab==5.0.0
+Pillow==11.3.0
 ```
+
+As versões de PySide6 e PyMuPDF podem ser fixadas posteriormente após a validação da combinação escolhida para distribuição do executável.
 
 ---
 
-## 🚀 Executando Localmente
+## 🚀 Desenvolvimento da versão Web
 
 ### 1. Clone o repositório
 
@@ -419,514 +354,372 @@ git clone <URL-DO-REPOSITORIO>
 cd <NOME-DO-REPOSITORIO>
 ```
 
-### 2. Crie um ambiente virtual
+### 2. Crie e ative um ambiente virtual
 
-#### Windows
+Windows:
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\activate
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-#### Linux/macOS
+Linux/macOS:
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. Instale as dependências
+### 3. Instale o backend
 
 ```bash
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
-### 4. Inicie o backend
+### 4. Inicie o backend local
 
-Para desenvolvimento:
+A partir da raiz:
 
 ```bash
-python app.py
+python backend/app.py
 ```
 
-O backend será disponibilizado, por padrão, em:
+Por padrão:
 
 ```text
-http://localhost:5000
+http://127.0.0.1:5000
 ```
 
 Status:
 
 ```text
-http://localhost:5000/api/status
+http://127.0.0.1:5000/api/status
 ```
 
-### 5. Inicie o frontend
+### 5. Sirva o frontend
 
-O frontend deve ser servido através de um servidor HTTP local.
+Use um servidor HTTP local, como Live Server no VS Code.
 
-Por exemplo, utilizando **Live Server** no Visual Studio Code:
+Exemplo:
 
 ```text
 http://127.0.0.1:5500
 ```
 
-> Abrir o `index.html` diretamente através de `file://` pode impedir o funcionamento correto de alguns recursos do navegador e das políticas de segurança.
+> Abrir `index.html` diretamente por `file://` pode impedir o funcionamento correto de recursos e políticas de segurança do navegador.
 
 ---
 
-## ⚙️ Variáveis de Ambiente
+## 💻 Executando a versão Desktop
 
-### `APP_ENV`
+Crie um ambiente separado:
 
-Define o ambiente da aplicação.
-
-Produção:
-
-```env
-APP_ENV=production
+```powershell
+py -m venv .venv-desktop
+.\.venv-desktop\Scripts\Activate.ps1
 ```
 
-### `ALLOWED_ORIGIN`
+Instale:
 
-Define a origem autorizada a utilizar a API.
-
-Exemplo:
-
-```env
-ALLOWED_ORIGIN=https://SEU-USUARIO.github.io
+```powershell
+python -m pip install --upgrade pip setuptools wheel
+pip install -r desktop/requirements.txt
 ```
 
-### `APP_TIMEZONE`
+Valide a sintaxe:
 
-Define o timezone utilizado para data e hora.
-
-```env
-APP_TIMEZONE=America/Sao_Paulo
+```powershell
+python -m py_compile desktop/local.py
 ```
 
-### `ENFORCE_HTTPS`
+Execute:
 
-Permite exigir HTTPS.
-
-Produção:
-
-```env
-ENFORCE_HTTPS=true
+```powershell
+python desktop/local.py
 ```
 
-### `REQUIRE_ORIGIN`
+A versão Desktop abre uma janela nativa e não inicia navegador ou servidor HTTP.
 
-Permite exigir uma origem HTTP autorizada nas rotas protegidas.
+### Empacotamento como `.exe`
 
-Produção:
+Uma opção para distribuição no Windows é o PyInstaller. Recomenda-se testar inicialmente em modo `onedir`:
 
-```env
-REQUIRE_ORIGIN=true
+```powershell
+pip install pyinstaller
+pyinstaller --noconsole --onedir --name AssinadorDigital desktop/local.py
 ```
 
-### `TRUSTED_HOSTS`
+Depois de validar DLLs, plugins Qt, pyHanko, PyMuPDF e demais dependências, pode-se avaliar o modo `--onefile`.
+---
 
-Define os hosts aceitos pela aplicação, quando suportado/configurado pelo backend.
+## ♿ Acessibilidade
 
-Exemplo:
+### Web
 
-```env
-TRUSTED_HOSTS=seu-backend.onrender.com
-```
+A interface Web inclui:
 
-### `RATELIMIT_STORAGE_URI`
+- labels associados aos campos;
+- `aria-live`;
+- `role="alert"`;
+- descrições ARIA;
+- skip link;
+- navegação por teclado;
+- indicador de foco;
+- mensagens de estado traduzíveis.
 
-Define o armazenamento do Flask-Limiter.
+### Desktop
 
-Desenvolvimento:
+A interface Desktop utiliza widgets Qt nativos e inclui controles acessíveis para seleção de página e posição da assinatura.
 
-```env
-RATELIMIT_STORAGE_URI=memory://
-```
-
-Produção com Redis:
-
-```env
-RATELIMIT_STORAGE_URI=redis://...
-```
-
-> Não publique credenciais Redis no repositório. Configure a URI como variável de ambiente no serviço de hospedagem.
+A acessibilidade completa não deve ser presumida apenas pelo código. Recomenda-se validar as duas versões com leitores de tela e navegação exclusivamente por teclado.
 
 ---
 
-## 🦄 Gunicorn
+## 🔎 Verificação das assinaturas
 
-Em produção, o Flask deve ser executado através de um servidor WSGI adequado.
+O PDF gerado contém uma assinatura digital PAdES que pode ser inspecionada por softwares e serviços compatíveis com PDF/PAdES e com a cadeia de certificação utilizada.
 
-O projeto possui:
-
-```text
-gunicorn.conf.py
-```
-
-No Render, o comando de inicialização pode ser:
-
-```bash
-gunicorn -c gunicorn.conf.py app:app
-```
-
-O arquivo centraliza configurações de execução do Gunicorn, como workers, threads, timeouts e logs.
-
-Para desenvolvimento local, continue utilizando:
-
-```bash
-python app.py
-```
-
----
-
-## ☁️ Implantação
-
-### Frontend — GitHub Pages
-
-Antes da publicação:
-
-1. configure a URL real do backend no frontend;
-2. autorize essa URL na diretiva `connect-src` da CSP;
-3. mantenha o PDF.js local;
-4. confirme que os caminhos dos arquivos estáticos estão corretos.
-
-### Backend — Render
-
-Configure o serviço para instalar:
-
-```bash
-pip install -r requirements.txt
-```
-
-E iniciar:
-
-```bash
-gunicorn -c gunicorn.conf.py app:app
-```
-
-Health Check:
-
-```text
-/api/status
-```
-
-Configure também as variáveis de ambiente de produção.
-
-### Redis
-
-Em produção, Redis pode ser utilizado pelo Flask-Limiter para compartilhar o estado dos limites entre diferentes workers ou instâncias.
-
-Configure a conexão exclusivamente por variável de ambiente.
-
----
-
-## 🌐 Ícone da Aplicação
-
-A aplicação utiliza o símbolo da identidade visual própria da assinatura padrão como favicon.
-
-O ícone pode ser incorporado diretamente ao `index.html` como SVG através de uma Data URL.
-
-Portanto, **não é obrigatório criar arquivos separados como `favicon.svg` ou `flaticon.svg`**.
-
----
-
-## 🔎 Verificação das Assinaturas
-
-O PDF resultante contém uma assinatura digital PAdES que pode ser analisada por softwares e serviços compatíveis com PDF/PAdES e com a cadeia de certificação utilizada.
-
-A indicação de validade ou confiança pode depender de fatores como:
+A indicação de confiança pode depender de fatores como:
 
 - certificado utilizado;
 - autoridade certificadora;
 - cadeia de confiança;
 - política do validador;
-- disponibilidade das informações de validação;
-- estado de revogação;
+- disponibilidade de informações de validação;
+- revogação do certificado;
 - perfil da assinatura;
-- contexto de utilização do documento.
+- contexto de uso do documento.
 
-A representação visual presente no PDF **não constitui, por si só, a assinatura criptográfica**.
+A aparência visual presente no PDF **não constitui, por si só, a assinatura criptográfica**.
 
 ---
 
-## ⚠️ Aviso Legal
+## ⚠️ Aviso legal
 
 Este software executa operações técnicas de assinatura digital, mas não garante automaticamente que toda assinatura produzida terá determinado efeito jurídico.
 
-A validade ou eficácia jurídica pode depender, entre outros fatores, de:
-
-- legislação aplicável;
-- certificado utilizado;
-- identificação do titular;
-- cadeia e política de confiança;
-- forma de assinatura;
-- contexto de utilização;
-- requisitos da organização que recebe o documento.
+A validade ou eficácia jurídica pode depender da legislação aplicável, do certificado, da cadeia e política de confiança, da identificação do titular, do contexto de uso e dos requisitos da organização que recebe o documento.
 
 ---
 
 # 🇺🇸 English
 
-## 🔏 About the Project
+## 🔏 About the project
 
-**Digital Signer PAdES** is an open-source web application for cryptographically signing PDF documents using `.p12` or `.pfx` digital certificates.
+**Digital Signer PAdES** is an open-source project for cryptographically signing PDF documents with PKCS#12 digital certificates stored as `.p12` or `.pfx` files.
 
-The backend uses **Flask** and **pyHanko** to produce **PAdES (PDF Advanced Electronic Signatures)** digital signatures. The frontend uses **PDF.js** to render documents, navigate between pages and visually position the signature.
+The project provides two usage modes:
 
-The application supports PKCS#12 certificates compatible with the cryptographic infrastructure used by `pyHanko`, including **ICPEdu** personal certificates, **ICP-Brasil** certificates and other compatible certificates.
+- **Web version:** static HTML/CSS/JavaScript/PDF.js frontend connected to a Flask backend that can be hosted on Render;
+- **Desktop version:** a local PySide6 application that does not require a browser and does not need to upload the document, certificate or password to a remote server.
 
-> **Important:** the visible appearance placed on the document is separate from the cryptographic signature. Images, logos and visual stamps do not replace the digital certificate and do not, by themselves, determine whether a signature is valid.
+Both versions use **pyHanko** to create **PAdES (PDF Advanced Electronic Signatures)** digital signatures.
+
+> **Important:** the visible appearance placed on the PDF is separate from the cryptographic signature. Images, logos and visual stamps do not replace the digital certificate and do not, by themselves, determine signature validity.
 
 ---
 
-## ✨ Features
+## ✨ Main features
 
-### 🔐 PAdES Digital Signatures
+### 🔐 PAdES signatures
 
-- cryptographic PDF signing using `pyHanko`;
-- `.p12` and `.pfx` certificate support;
+- cryptographic PDF signing with `pyHanko`;
+- `.p12` and `.pfx` support;
 - SHA-256 message digest;
-- PAdES signature format;
 - incremental PDF updates;
 - unique signature field identifiers;
 - certificate holder name obtained from the certificate;
-- removal of a CPF number from the visual appearance when included in the certificate's `Common Name`.
+- CPF removal only from the **visible appearance** when appended to the certificate `Common Name`;
+- **240 × 68 PDF point** visible signature field.
 
-CPF removal affects **only the visual appearance**. It does not modify the certificate, its attributes or the cryptographic signature.
+### 🎨 Appearance modes
 
-### 📄 PDF Preview and Placement
+Three visible signature modes are available:
 
-- PDF rendering using **PDF.js**;
-- PDF.js hosted with the application instead of being loaded from a CDN at runtime;
-- multi-page document support;
-- visual signature placement directly over the document;
-- conversion between interface coordinates and actual PDF coordinates;
-- page navigation;
-- automatic transition to the next page when reaching the end of the current page;
-- responsive document scaling;
-- preservation of the original page aspect ratio;
-- **240 × 68 PDF point** visual signature field.
+1. **Standard** — uses the Digital Signer's own visual identity;
+2. **Simple custom** — allows customized text and visible information;
+3. **Custom with image** — allows a logo/side image or a complete signature image.
 
----
-
-## 🎨 Signature Appearance Modes
-
-The application provides three visual appearance modes.
-
-### 1. Standard
-
-Uses the **Digital Signer** project's own visual identity.
-
-It may display:
-
-- the project's own icon;
-- certificate holder name;
-- signing date;
-- optional signing time;
-- PAdES digital signature indication.
-
-### 2. Simple Custom
-
-Allows customization without using a complete signature image.
-
-It may include:
-
-- custom title;
-- certificate holder name;
-- date;
-- optional time;
-- PAdES digital signature indication.
-
-### 3. Custom with Image
-
-Allows a custom image to be included in the visible signature appearance.
-
-Supported formats:
+Accepted custom images:
 
 - PNG;
-- JPEG/JPG.
+- JPEG/JPG;
+- up to **2 MB**;
+- up to **4000 × 4000 pixels**.
 
-The image can be treated as:
+The application can automatically determine whether a horizontal image should be treated as a complete signature image or as a logo/side image.
 
-- a logo or side image;
-- a complete signature image.
+### 📅 Date and time
 
-The application can also automatically determine the most appropriate mode based on the image characteristics and proportions.
-
-Compatible horizontal images may be interpreted as complete signature artwork and proportionally scaled to use most of the available area.
-
----
-
-## 🖼️ Custom Images
-
-Images uploaded by the user:
-
-- are used only for the visual appearance;
-- do not replace the cryptographic signature;
-- do not replace the digital certificate;
-- are limited to **2 MB**;
-- are validated by the backend using **Pillow**;
-- are restricted to the image formats accepted by the application;
-- have a resolution limit;
-- preserve their aspect ratio when resized.
-
-For a complete signature image, the application can use most of the available area while reserving space for date/time information when necessary.
-
-The visual field remains:
-
-```text
-240 × 68 PDF points
-```
-
----
-
-## 📅 Date and Time
-
-The **date** is enabled by default.
-
-The **time** is optional and **disabled by default**.
-
-Examples:
+Date display is enabled by default. Time display is optional and disabled by default.
 
 ```text
 Date ✓ | Time ✗ → 19/08/2026
-Date ✓ | Time ✓ → 19/08/2026 02:00
-Date ✗ | Time ✓ → 02:00
+Date ✓ | Time ✓ → 19/08/2026 04:25
+Date ✗ | Time ✓ → 04:25
 Date ✗ | Time ✗ → no temporal information
 ```
 
-The backend's default timezone is:
+The Web backend timezone can be configured with `APP_TIMEZONE`. The Desktop version currently defaults to `America/Sao_Paulo`, with UTC as fallback.
+
+---
+
+## 🌐 Web version
+
+The Web version uses:
+
+- HTML5;
+- CSS3;
+- JavaScript;
+- locally hosted PDF.js;
+- Flask;
+- Gunicorn;
+- pyHanko;
+- ReportLab;
+- Pillow;
+- Flask-Limiter;
+- Redis-compatible shared Rate Limiting storage in production.
+
+### Frontend features
+
+- PDF preview using PDF.js;
+- multi-page documents;
+- visual signature placement;
+- automatic transition to the next page at the end of the scroll;
+- Portuguese and English;
+- initial language based on browser/system preferences;
+- light/dark theme based initially on system preference;
+- screen-reader-oriented ARIA attributes, `aria-live` regions, alerts and keyboard navigation;
+- Content Security Policy (CSP);
+- locally hosted PDF.js;
+- backend availability indicator.
+
+### Waking the Render backend
+
+When the page loads, the frontend calls:
 
 ```text
-America/Sao_Paulo
+GET /api/status
 ```
 
-It can be changed using:
+This happens in the background while the user selects the PDF and positions the signature. On Render services that sleep after inactivity, this can start the backend before the user reaches the signing step.
 
-```env
-APP_TIMEZONE
-```
-
----
-
-## 🌐 Bilingual Interface
-
-The interface supports:
-
-- 🇧🇷 Portuguese;
-- 🇺🇸 English.
-
-On first use, the application determines the initial language from the browser/system language.
-
-Users can manually switch languages using the control available in the interface.
-
-The selected preference may be stored locally by the browser.
-
-Internationalization can also cover accessibility information, including:
-
-- ARIA descriptions;
-- pagination;
-- status messages;
-- error messages;
-- step descriptions;
-- navigation controls.
-
----
-
-## 🌓 Light and Dark Themes
-
-By default, the application follows the operating system/browser appearance preference:
+The UI can display:
 
 ```text
-Light system theme → light application theme
-Dark system theme  → dark application theme
+🟡 Starting signing service...
+🟢 Signing service available
+🔴 Signing service unavailable
 ```
 
-Users can manually switch between themes.
-
-The selected preference may be stored locally by the browser.
+`/api/status` is exempt from Origin validation and Rate Limiting so it can be used for health checks and service startup.
 
 ---
 
-## ♿ Accessibility
+## 💻 Desktop version
 
-The interface includes accessibility features such as:
+The Desktop application is located at:
 
-- screen reader support;
-- `aria-live` regions;
-- `role="alert"` messages;
-- properly associated form labels;
-- ARIA descriptions;
-- accessible step information;
-- keyboard navigation;
-- visible keyboard focus;
-- skip-to-main-content link;
-- accessible pagination information;
-- accessible PDF preview descriptions;
-- announcements for relevant interface changes.
+```text
+desktop/local.py
+```
+
+It uses **PySide6** for the native GUI and **PyMuPDF** for local PDF rendering.
+
+### Features
+
+- no Flask;
+- no browser;
+- no Render dependency;
+- no GitHub Pages dependency;
+- document, certificate, password and image stay on the user's computer;
+- high-resolution PDF rendering with internal quality factor `2.5`;
+- multi-page navigation;
+- automatic next-page transition at the bottom of the scroll;
+- visual placement;
+- optional accessible placement controls using page and predefined regions;
+- toggle to show/hide accessible placement controls;
+- Portuguese/English;
+- initial system theme detection;
+- manually switchable theme using explicit internal state;
+- configuration fields that change according to the appearance selected in step 3;
+- signing operation executed in a `QThread` to avoid blocking the GUI;
+- native file dialogs for PDF, certificate, image and output path;
+- suitable as the basis for a future Windows `.exe` build.
+
+### Accessible placement
+
+Users can enable:
+
+```text
+☑ Use accessible placement
+```
+
+Then select:
+
+```text
+Page: 1
+Position: Top left
+          Top right
+          Bottom left
+          Bottom right
+          Center
+```
+
+This complements click-based placement and improves keyboard and assistive-technology use.
+
+> Accessibility should also be tested with real screen readers such as NVDA on Windows. Native Qt widgets and accessible names/descriptions provide a good foundation but do not replace practical testing.
 
 ---
 
-## 🛡️ Security and Privacy
+## 🛡️ Security and privacy
 
-The project uses several security measures on both the frontend and backend.
+### Web version
 
-### Backend
+Backend measures include:
 
-Measures include:
-
-- controlled PKCS#12 certificate processing;
-- temporary `.p12`/`.pfx` file handling;
-- removal of temporary certificate files after loading;
-- cleanup of temporary visual-appearance files;
 - request-size limits;
-- custom image-size limits;
-- image validation using Pillow;
+- PDF, certificate and image limits;
+- PDF and image validation;
 - image-format restrictions;
 - image-resolution limits;
-- PDF validation;
-- selected-page validation;
-- coordinate validation;
+- temporary file cleanup;
 - configurable CORS;
-- request-origin validation;
-- optional HTTPS enforcement in production;
+- explicit `Origin` validation;
+- optional HTTPS enforcement;
 - Rate Limiting;
-- Redis support for shared Rate Limiting storage;
-- unique signature-field identifiers;
-- controlled error handling;
-- additional HTTP security headers.
+- Redis support for shared limits;
+- configurable trusted hosts;
+- additional HTTP security headers;
+- disabled caching for sensitive responses;
+- controlled error handling.
 
-### Frontend
+Frontend measures include:
 
-Frontend security measures include:
-
-- **Content Security Policy (CSP)**;
+- CSP restrictions;
 - locally hosted PDF.js;
 - restricted backend connection origins;
-- no third-party certificate upload in the application's normal workflow;
-- cleanup of sensitive fields when appropriate;
-- request timeout;
-- validation before data is submitted.
+- `credentials: "omit"` requests;
+- sensitive-field cleanup;
+- request timeouts.
 
-### Default Limits
+> CORS and `Origin` validation restrict ordinary browser use by other sites, but they are not authentication. An external HTTP client can forge the `Origin` header.
+
+### Desktop version
+
+There is no client-server communication in the Desktop version:
 
 ```text
-Request: up to 30 MB
-Custom image: up to 2 MB
-Image resolution: up to 4000 × 4000 pixels
-Signing endpoint: 5 requests per minute per IP
-General limit: 200 requests per day
+PDF + certificate + password
+          ↓
+      local processing
+          ↓
+         pyHanko
+          ↓
+        signed PDF
 ```
 
-> For production environments using multiple processes or instances, a shared Rate Limiting storage such as Redis is recommended instead of `memory://`.
-
-### Certificate Password
-
-The certificate password is required to unlock the private key contained in the PKCS#12 file during the signing process.
-
-The application should be deployed exclusively through **HTTPS** in production to protect communication between the client and server.
+Local protections still include file-size limits, PDF validation, PNG/JPEG validation, image-resolution limits, temporary-file cleanup and short-lived password handling.
 
 ---
 
@@ -934,120 +727,82 @@ The application should be deployed exclusively through **HTTPS** in production t
 
 The **[ICPEdu Personal Certificate](https://pessoal.icpedu.rnp.br/)** is a service provided by Brazil's National Research and Education Network (RNP) for eligible users at participating institutions.
 
-ICPEdu personal certificates provided in PKCS#12 (`.p12`/`.pfx`) format can be used by this project when compatible with the underlying cryptographic infrastructure.
+ICPEdu personal certificates supplied in PKCS#12 (`.p12`/`.pfx`) format can be used when compatible with the cryptographic infrastructure used by `pyHanko`.
 
 👉 **[Access ICPEdu Personal Certificate](https://pessoal.icpedu.rnp.br/)**
 
-### Visual Identity Notice
+### Visual identity notice
 
 This project uses **its own visual identity** for visible signature appearances.
 
-The project does not depend on RNP/ICPEdu's official visual identity to generate its visual stamps.
-
-Using an ICPEdu certificate with this project **does not mean the document was signed using RNP's official signing application**.
-
-ICPEdu and RNP references identify their respective services and organizations and do not imply affiliation with or endorsement of this project.
+Using an ICPEdu certificate with this project **does not mean that the document was signed using RNP's official signing application**. References to ICPEdu and RNP identify their respective services and organizations and do not imply affiliation with or endorsement of this project.
 
 ---
 
 ## 🏗️ Architecture
 
 ```text
-┌──────────────────────────────────┐
-│             Frontend             │
-│                                  │
-│ HTML + CSS + JavaScript          │
-│ Local PDF.js                     │
-│                                  │
-│ • PDF preview                    │
-│ • Signature placement            │
-│ • Page navigation                │
-│ • Appearance selection           │
-│ • Custom images                  │
-│ • Light/dark themes              │
-│ • Portuguese/English             │
-│ • Accessibility                  │
-└────────────────┬─────────────────┘
-                 │
-                 │ HTTPS
-                 │ multipart/form-data
-                 ▼
-┌──────────────────────────────────┐
-│              Backend             │
-│                                  │
-│ Gunicorn                         │
-│ Flask                            │
-│ pyHanko                          │
-│ ReportLab                        │
-│ Pillow                           │
-│ Flask-Limiter / Redis            │
-│                                  │
-│ • Validation                     │
-│ • PKCS#12 certificate            │
-│ • Visual appearance              │
-│ • PAdES signature                │
-└────────────────┬─────────────────┘
-                 │
-                 ▼
-            Signed PDF
+Digital Signer PAdES
+│
+├── 🌐 Web version
+│   │
+│   ├── GitHub Pages / static frontend
+│   │   ├── index.html
+│   │   ├── app.js
+│   │   ├── styles.css
+│   │   └── vendor/pdfjs/
+│   │
+│   └── Render / backend
+│       ├── Flask
+│       ├── Gunicorn
+│       ├── pyHanko
+│       ├── ReportLab
+│       ├── Pillow
+│       └── Flask-Limiter / Redis
+│
+└── 💻 Desktop version
+    ├── PySide6
+    ├── PyMuPDF
+    ├── pyHanko
+    ├── ReportLab
+    └── Pillow
 ```
 
 ---
 
-## 🧰 Technologies
-
-### Backend
-
-- Python;
-- Flask;
-- Flask-Cors;
-- Flask-Limiter;
-- Redis;
-- pyHanko;
-- ReportLab;
-- Pillow;
-- Gunicorn.
-
-### Frontend
-
-- HTML5;
-- CSS3;
-- JavaScript;
-- PDF.js.
-
-### Deployment
-
-- GitHub Pages — frontend;
-- Render — backend;
-- Redis — shared production Rate Limiting storage.
-
----
-
-## 📁 Project Structure
+## 📁 Project structure
 
 ```text
 project/
-├── app.py
-├── gunicorn.conf.py
-├── requirements.txt
 ├── index.html
 ├── app.js
 ├── styles.css
 ├── README.md
 ├── LICENSE
-└── vendor/
-    └── pdfjs/
-        ├── pdf.min.js
-        └── pdf.worker.min.js
+├── .gitignore
+│
+├── vendor/
+│   └── pdfjs/
+│       ├── pdf.min.js
+│       └── pdf.worker.min.js
+│
+├── backend/
+│   ├── app.py
+│   ├── gunicorn.conf.py
+│   └── requirements.txt
+│
+└── desktop/
+    ├── local.py
+    └── requirements.txt
 ```
-
-PDF.js is stored with the frontend so the library does not need to be loaded directly from a CDN while the application is being used.
 
 ---
 
 ## 📦 Dependencies
 
-The backend uses:
+### Web backend
+
+`backend/requirements.txt`:
 
 ```txt
 Flask==3.1.3
@@ -1059,256 +814,149 @@ reportlab==5.0.0
 Pillow==11.3.0
 ```
 
-Install them with:
+### Desktop
 
-```bash
-pip install -r requirements.txt
+`desktop/requirements.txt`:
+
+```txt
+PySide6
+PyMuPDF
+pyHanko==0.36.2
+reportlab==5.0.0
+Pillow==11.3.0
 ```
+
+PySide6 and PyMuPDF can be pinned after the exact distribution/test combination has been validated.
 
 ---
 
-## 🚀 Local Development
+## 🚀 Web development
 
-### 1. Clone the repository
+Clone the repository:
 
 ```bash
 git clone <REPOSITORY-URL>
 cd <REPOSITORY-NAME>
 ```
 
-### 2. Create a virtual environment
+Create a virtual environment.
 
-#### Windows
+Windows:
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\activate
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-#### Linux/macOS
+Linux/macOS:
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. Install dependencies
+Install backend dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
-### 4. Start the backend
-
-For development:
+Start the backend from the repository root:
 
 ```bash
-python app.py
+python backend/app.py
 ```
 
-By default:
+Default local endpoint:
 
 ```text
-http://localhost:5000
+http://127.0.0.1:5000
 ```
 
-Health endpoint:
+Status endpoint:
 
 ```text
-http://localhost:5000/api/status
+http://127.0.0.1:5000/api/status
 ```
 
-### 5. Start the frontend
+Serve the frontend through a local HTTP server, such as VS Code Live Server.
 
-Serve the frontend through a local HTTP server.
-
-For example, using **Live Server** in Visual Studio Code:
-
-```text
-http://127.0.0.1:5500
-```
-
-> Opening `index.html` directly through `file://` may prevent some browser and security features from working correctly.
+> Opening `index.html` through `file://` may prevent browser features or security policies from working correctly.
 
 ---
 
-## ⚙️ Environment Variables
+## 💻 Running the Desktop version
 
-### `APP_ENV`
+Create a separate environment:
 
-Sets the application environment:
-
-```env
-APP_ENV=production
+```powershell
+py -m venv .venv-desktop
+.\.venv-desktop\Scripts\Activate.ps1
 ```
 
-### `ALLOWED_ORIGIN`
+Install dependencies:
 
-Sets the frontend origin authorized to access the API:
-
-```env
-ALLOWED_ORIGIN=https://YOUR-USERNAME.github.io
+```powershell
+python -m pip install --upgrade pip setuptools wheel
+pip install -r desktop/requirements.txt
 ```
 
-### `APP_TIMEZONE`
+Check syntax:
 
-Sets the timezone used for signature date/time information:
-
-```env
-APP_TIMEZONE=America/Sao_Paulo
+```powershell
+python -m py_compile desktop/local.py
 ```
 
-### `ENFORCE_HTTPS`
+Run:
 
-Enables HTTPS enforcement:
-
-```env
-ENFORCE_HTTPS=true
+```powershell
+python desktop/local.py
 ```
 
-### `REQUIRE_ORIGIN`
+The Desktop version opens a native window and does not start a web browser or HTTP server.
 
-Enables origin validation on protected routes:
+### Building a Windows `.exe`
 
-```env
-REQUIRE_ORIGIN=true
+PyInstaller can be used as a distribution option. Start with `onedir` while validating Qt plugins and native dependencies:
+
+```powershell
+pip install pyinstaller
+pyinstaller --noconsole --onedir --name AssinadorDigital desktop/local.py
 ```
 
-### `TRUSTED_HOSTS`
-
-Defines accepted hosts when supported/configured by the backend:
-
-```env
-TRUSTED_HOSTS=your-backend.onrender.com
-```
-
-### `RATELIMIT_STORAGE_URI`
-
-Development:
-
-```env
-RATELIMIT_STORAGE_URI=memory://
-```
-
-Production with Redis:
-
-```env
-RATELIMIT_STORAGE_URI=redis://...
-```
-
-> Never commit Redis credentials to the repository. Store the connection URI as a deployment environment variable.
+After validating PySide6, PyMuPDF, pyHanko and other native dependencies, `--onefile` can be evaluated.
 
 ---
 
-## 🦄 Gunicorn
+## ♿ Accessibility
 
-Production should use a suitable WSGI server rather than Flask's development server.
+### Web
 
-The project includes:
+The Web UI includes form labels, `aria-live`, `role="alert"`, ARIA descriptions, a skip link, keyboard navigation, visible focus and translated status messages.
 
-```text
-gunicorn.conf.py
-```
+### Desktop
 
-On Render, the start command can be:
+The Desktop UI uses native Qt widgets and offers accessible page/position controls in addition to visual click placement.
 
-```bash
-gunicorn -c gunicorn.conf.py app:app
-```
-
-The configuration file centralizes Gunicorn settings such as workers, threads, timeouts and logging.
-
-For local development, continue using:
-
-```bash
-python app.py
-```
+Accessibility should not be assumed from implementation alone. Both versions should be tested using screen readers and keyboard-only navigation.
 
 ---
 
-## ☁️ Deployment
+## 🔎 Signature verification
 
-### Frontend — GitHub Pages
+The resulting PDF contains a PAdES digital signature that can be inspected by software and services compatible with PDF/PAdES and the certificate chain being used.
 
-Before deployment:
+Trust indications can depend on the certificate, certificate authority, trust chain, validator policy, validation information availability, revocation status, signature profile and document usage context.
 
-1. configure the real backend URL in the frontend;
-2. allow the backend URL in the CSP `connect-src` directive;
-3. keep PDF.js locally hosted;
-4. verify static file paths.
-
-### Backend — Render
-
-Build command:
-
-```bash
-pip install -r requirements.txt
-```
-
-Start command:
-
-```bash
-gunicorn -c gunicorn.conf.py app:app
-```
-
-Health Check:
-
-```text
-/api/status
-```
-
-Configure the required production environment variables in Render.
-
-### Redis
-
-Redis can be used by Flask-Limiter to share Rate Limiting state between workers or instances.
-
-Configure the Redis connection exclusively through an environment variable.
+The visible appearance **does not constitute the cryptographic signature by itself**.
 
 ---
 
-## 🌐 Application Icon
-
-The application uses the symbol from its own standard signature visual identity as the browser favicon.
-
-The icon can be embedded directly in `index.html` as an SVG Data URL.
-
-Therefore, separate `favicon.svg` or `flaticon.svg` files are **not required**.
-
----
-
-## 🔎 Signature Verification
-
-The resulting PDF contains a PAdES digital signature that can be inspected using software and services compatible with PDF/PAdES and the certificate chain being used.
-
-Trust or validity indications can depend on factors such as:
-
-- certificate;
-- certificate authority;
-- trust chain;
-- validator policy;
-- availability of validation information;
-- certificate revocation status;
-- signature profile;
-- document usage context.
-
-The visible appearance in the PDF **does not constitute the cryptographic signature by itself**.
-
----
-
-## ⚠️ Legal Notice
+## ⚠️ Legal notice
 
 This software performs technical digital-signature operations but does not automatically guarantee that every resulting signature will have a particular legal effect.
 
-Legal validity or effectiveness may depend on factors including:
-
-- applicable law;
-- certificate used;
-- signer identification;
-- trust chain and policies;
-- signing method;
-- usage context;
-- requirements of the organization receiving the document.
+Legal validity or effectiveness may depend on applicable law, the certificate, trust chain and policies, signer identification, usage context and the requirements of the organization receiving the document.
 
 ---
 
