@@ -449,7 +449,7 @@ Uma opção para distribuição no Windows é o PyInstaller. Recomenda-se testar
 
 ```powershell
 pip install pyinstaller
-pyinstaller --noconsole --onedir --name AssinadorDigital desktop/local.py
+pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital desktop/local.py
 ```
 
 Depois de validar DLLs, plugins Qt, pyHanko, PyMuPDF e demais dependências, pode-se avaliar o modo `--onefile`.
@@ -928,7 +928,7 @@ PyInstaller can be used as a distribution option. Start with `onedir` while vali
 
 ```powershell
 pip install pyinstaller
-pyinstaller --noconsole --onedir --name AssinadorDigital desktop/local.py
+pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital desktop/local.py
 ```
 
 After validating PySide6, PyMuPDF, pyHanko and other native dependencies, `--onefile` can be evaluated.
