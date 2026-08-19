@@ -1,21 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-BR" id="html-root">
+
 <head>
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="referrer"
-        content="no-referrer"
-    >
+    <meta name="referrer" content="no-referrer">
 
-    <meta
-        http-equiv="Content-Security-Policy"
-        content="
+    <meta http-equiv="Content-Security-Policy" content="
             default-src 'self';
             script-src 'self';
             style-src 'self';
@@ -29,86 +22,41 @@
             base-uri 'none';
             form-action 'self';
             manifest-src 'self';
-        "
-    >
+        ">
 
     <title>Assinador Digital</title>
 
-    <link
-        rel="icon"
-        type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%232563EB'/%3E%3Cpath d='M18 32 L27 41 L47 20' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
-    >
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%232563EB'/%3E%3Cpath d='M18 32 L27 41 L47 20' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 
-    <link
-        rel="stylesheet"
-        href="./styles.css"
-    >
+    <link rel="stylesheet" href="./styles.css">
 
-    <script
-        defer
-        src="./vendor/pdfjs/pdf.min.js"
-    ></script>
+    <script defer src="./vendor/pdfjs/pdf.min.js"></script>
 
-    <script
-        defer
-        src="./app.js"
-    ></script>
+    <script defer src="./app.js"></script>
 </head>
 
 <body>
-    <a
-        class="skip-link"
-        href="#main-content"
-        id="skip-link"
-    >
+    <a class="skip-link" href="#main-content" id="skip-link">
         Pular para o conteúdo principal
     </a>
 
-    <div
-        id="screen-reader-announcer"
-        class="sr-only"
-        aria-live="polite"
-        aria-atomic="true"
-    ></div>
+    <div id="screen-reader-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
-    <div
-        id="screen-reader-alert"
-        class="sr-only"
-        role="alert"
-        aria-live="assertive"
-        aria-atomic="true"
-    ></div>
+    <div id="screen-reader-alert" class="sr-only" role="alert" aria-live="assertive" aria-atomic="true"></div>
 
-    <nav
-        class="top-controls"
-        id="top-controls"
-        aria-label="Preferências da página"
-    >
-        <button
-            type="button"
-            class="icon-btn"
-            id="theme-button"
-            aria-label="Alternar tema"
-        >
+    <nav class="top-controls" id="top-controls" aria-label="Preferências da página">
+        <button type="button" class="icon-btn" id="theme-button" aria-label="Alternar tema">
             <span aria-hidden="true">
                 🌓
             </span>
 
-            <span
-                class="sr-only"
-                id="theme-text"
-            >
+            <span class="sr-only" id="theme-text">
                 Alternar tema
             </span>
         </button>
 
-        <button
-            type="button"
-            class="icon-btn"
-            id="language-button"
-            aria-label="Mudar idioma para inglês"
-        >
+        <button type="button" class="icon-btn" id="language-button" aria-label="Mudar idioma para inglês">
             <span aria-hidden="true">
                 🌐
             </span>
@@ -119,44 +67,33 @@
         </button>
     </nav>
 
-    <main
-        class="container"
-        id="main-content"
-        tabindex="-1"
-    >
+    <main class="container" id="main-content" tabindex="-1">
         <header class="header">
             <h1 id="title">
                 Assinador Digital
             </h1>
 
-            <p
-                id="subtitle"
-                aria-live="polite"
-            >
+            <p id="subtitle" aria-live="polite">
                 Etapa 1 de 5: Envio do documento
             </p>
+
+            <div id="backend-status" class="backend-status" role="status" aria-live="polite" aria-atomic="true">
+                <span id="backend-status-dot" class="backend-status-dot backend-status-starting"
+                    aria-hidden="true"></span>
+
+                <span id="backend-status-text">
+                    Preparando serviço de assinatura...
+                </span>
+            </div>
         </header>
 
-        <section
-            id="step-1"
-            class="step active"
-            aria-labelledby="step-1-title"
-        >
-            <h2
-                id="step-1-title"
-                class="sr-only"
-            >
+        <section id="step-1" class="step active" aria-labelledby="step-1-title">
+            <h2 id="step-1-title" class="sr-only">
                 Envio do documento
             </h2>
 
-            <label
-                class="upload-area"
-                for="fileInput"
-            >
-                <span
-                    class="upload-icon"
-                    aria-hidden="true"
-                >
+            <label class="upload-area" for="fileInput">
+                <span class="upload-icon" aria-hidden="true">
                     📄
                 </span>
 
@@ -168,117 +105,52 @@
                     ou escolha um arquivo PDF
                 </span>
 
-                <input
-                    type="file"
-                    id="fileInput"
-                    accept="application/pdf,.pdf"
-                    aria-describedby="pdf-help error-pdf"
-                >
+                <input type="file" id="fileInput" accept="application/pdf,.pdf" aria-describedby="pdf-help error-pdf">
             </label>
 
-            <p
-                class="help"
-                id="pdf-help"
-            >
+            <p class="help" id="pdf-help">
                 Apenas arquivos PDF.
             </p>
 
-            <p
-                id="error-pdf"
-                class="alert"
-                role="alert"
-            ></p>
+            <p id="error-pdf" class="alert" role="alert"></p>
         </section>
 
-        <section
-            id="step-2"
-            class="step"
-            aria-labelledby="step-2-title"
-        >
-            <h2
-                id="step-2-title"
-                class="sr-only"
-            >
+        <section id="step-2" class="step" aria-labelledby="step-2-title">
+            <h2 id="step-2-title" class="sr-only">
                 Posicionamento da assinatura
             </h2>
 
-            <p
-                id="position-description"
-                class="step-description"
-            >
+            <p id="position-description" class="step-description">
                 Clique na página onde deseja posicionar a assinatura.
             </p>
 
-            <div
-                class="pagination"
-                id="pagination"
-                aria-label="Navegação entre páginas"
-            >
-                <button
-                    type="button"
-                    id="prev-page"
-                    aria-label="Página anterior"
-                >
+            <div class="pagination" id="pagination" aria-label="Navegação entre páginas">
+                <button type="button" id="prev-page" aria-label="Página anterior">
                     ◀
                 </button>
 
-                <span
-                    id="page-indicator"
-                    aria-live="polite"
-                >
+                <span id="page-indicator" aria-live="polite">
                     Página 1
                 </span>
 
-                <button
-                    type="button"
-                    id="next-page"
-                    aria-label="Próxima página"
-                >
+                <button type="button" id="next-page" aria-label="Próxima página">
                     ▶
                 </button>
             </div>
 
-            <div
-                class="canvas-wrapper"
-                id="canvas-container"
-                tabindex="0"
-                role="region"
-                aria-label="Pré-visualização do documento PDF"
-                aria-describedby="position-description"
-            >
-                <div
-                    class="pdf-stage"
-                    id="pdf-stage"
-                    role="img"
-                    aria-label="Página do documento. Clique para posicionar a assinatura."
-                >
-                    <canvas
-                        id="pdf-canvas"
-                        aria-hidden="true"
-                    ></canvas>
+            <div class="canvas-wrapper" id="canvas-container" tabindex="0" role="region"
+                aria-label="Pré-visualização do documento PDF" aria-describedby="position-description">
+                <div class="pdf-stage" id="pdf-stage" role="img"
+                    aria-label="Página do documento. Clique para posicionar a assinatura.">
+                    <canvas id="pdf-canvas" aria-hidden="true"></canvas>
 
-                    <div
-                        id="signature-box"
-                        class="sig-box"
-                        aria-hidden="true"
-                    >
-                        <div
-                            id="standard-preview"
-                            class="standard-preview"
-                        >
-                            <div
-                                id="preview-logo"
-                                class="preview-logo"
-                            >
-                                <div
-                                    class="default-icon"
-                                ></div>
+                    <div id="signature-box" class="sig-box" aria-hidden="true">
+                        <div id="standard-preview" class="standard-preview">
+                            <div id="preview-logo" class="preview-logo">
+                                <div class="default-icon"></div>
                             </div>
 
-                            <div
-                                id="preview-text"
-                                class="preview-text"
-                            >
+                            <div id="preview-text" class="preview-text">
                                 <strong>
                                     Assinado digitalmente por
                                 </strong>
@@ -295,71 +167,39 @@
                             </div>
                         </div>
 
-                        <div
-                            id="full-preview"
-                            class="full-preview"
-                        >
+                        <div id="full-preview" class="full-preview">
                             <div class="full-preview-image-area">
-                                <img
-                                    id="full-preview-image"
-                                    alt=""
-                                >
+                                <img id="full-preview-image" alt="">
                             </div>
 
-                            <div
-                                id="full-preview-date"
-                                class="full-preview-date"
-                            ></div>
+                            <div id="full-preview-date" class="full-preview-date"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="btn-group">
-                <button
-                    type="button"
-                    class="btn btn-outline"
-                    id="cancel-button"
-                >
+                <button type="button" class="btn btn-outline" id="cancel-button">
                     Cancelar
                 </button>
 
-                <button
-                    type="button"
-                    class="btn"
-                    id="confirm-position-button"
-                >
+                <button type="button" class="btn" id="confirm-position-button">
                     Confirmar posição
                 </button>
             </div>
         </section>
 
-        <section
-            id="step-3"
-            class="step"
-            aria-labelledby="step-3-title"
-        >
+        <section id="step-3" class="step" aria-labelledby="step-3-title">
             <h2 id="step-3-title">
                 Qual tipo de assinatura deseja utilizar?
             </h2>
 
-            <p
-                id="signature-type-description"
-                class="step-description"
-            >
+            <p id="signature-type-description" class="step-description">
                 Escolha apenas a aparência visual. Todas as opções continuam utilizando o certificado digital.
             </p>
 
-            <div
-                class="signature-types"
-                role="group"
-                aria-labelledby="step-3-title"
-            >
-                <button
-                    type="button"
-                    class="signature-type"
-                    data-signature-type="standard"
-                >
+            <div class="signature-types" role="group" aria-labelledby="step-3-title">
+                <button type="button" class="signature-type" data-signature-type="standard">
                     <strong id="type-standard-title">
                         Padrão
                     </strong>
@@ -369,11 +209,7 @@
                     </span>
                 </button>
 
-                <button
-                    type="button"
-                    class="signature-type"
-                    data-signature-type="simple"
-                >
+                <button type="button" class="signature-type" data-signature-type="simple">
                     <strong id="type-simple-title">
                         Customizada simples
                     </strong>
@@ -383,11 +219,7 @@
                     </span>
                 </button>
 
-                <button
-                    type="button"
-                    class="signature-type"
-                    data-signature-type="image"
-                >
+                <button type="button" class="signature-type" data-signature-type="image">
                     <strong id="type-image-title">
                         Customizada com imagem
                     </strong>
@@ -398,124 +230,73 @@
                 </button>
             </div>
 
-            <button
-                type="button"
-                class="btn btn-outline"
-                id="back-type-button"
-            >
+            <button type="button" class="btn btn-outline" id="back-type-button">
                 Voltar
             </button>
         </section>
 
-        <section
-            id="step-4"
-            class="step"
-            aria-labelledby="step-4-title"
-        >
+        <section id="step-4" class="step" aria-labelledby="step-4-title">
             <h2 id="step-4-title">
                 Configurar assinatura
             </h2>
 
-            <p
-                id="step-4-description"
-                class="step-description"
-            >
+            <p id="step-4-description" class="step-description">
                 Configure a aparência e informe seu certificado digital.
             </p>
 
-            <div
-                id="simple-options"
-                class="visual-options hidden"
-            >
+            <div id="simple-options" class="visual-options hidden">
                 <h3 id="simple-options-title">
                     Aparência personalizada
                 </h3>
 
                 <div class="input-group">
-                    <label
-                        for="customTitle"
-                        id="custom-title-label"
-                    >
+                    <label for="customTitle" id="custom-title-label">
                         Texto superior:
                     </label>
 
-                    <input
-                        type="text"
-                        id="customTitle"
-                        maxlength="60"
-                        value="Assinado digitalmente por"
-                    >
+                    <input type="text" id="customTitle" maxlength="60" value="Assinado digitalmente por">
                 </div>
             </div>
 
-            <div
-                id="image-options"
-                class="visual-options hidden"
-            >
+            <div id="image-options" class="visual-options hidden">
                 <h3 id="image-options-title">
                     Imagem personalizada
                 </h3>
 
                 <div class="input-group">
-                    <label
-                        for="signatureImage"
-                        id="image-label"
-                    >
+                    <label for="signatureImage" id="image-label">
                         Imagem:
                     </label>
 
-                    <input
-                        type="file"
-                        id="signatureImage"
-                        accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-                        aria-describedby="image-help imageInfo"
-                    >
+                    <input type="file" id="signatureImage" accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                        aria-describedby="image-help imageInfo">
 
-                    <p
-                        class="help"
-                        id="image-help"
-                    >
+                    <p class="help" id="image-help">
                         PNG ou JPEG, até 2 MB.
                     </p>
                 </div>
 
                 <div class="input-group">
-                    <label
-                        for="imageMode"
-                        id="image-mode-label"
-                    >
+                    <label for="imageMode" id="image-mode-label">
                         Tratamento da imagem:
                     </label>
 
                     <select id="imageMode">
-                        <option
-                            value="auto"
-                            id="image-mode-auto"
-                        >
+                        <option value="auto" id="image-mode-auto">
                             Detectar automaticamente
                         </option>
 
-                        <option
-                            value="full"
-                            id="image-mode-full"
-                        >
+                        <option value="full" id="image-mode-full">
                             Assinatura completa
                         </option>
 
-                        <option
-                            value="logo"
-                            id="image-mode-logo"
-                        >
+                        <option value="logo" id="image-mode-logo">
                             Logotipo / imagem lateral
                         </option>
                     </select>
                 </div>
 
-                <div
-                    id="imageInfo"
-                    class="image-info hidden"
-                    aria-live="polite"
-                >
+                <div id="imageInfo" class="image-info hidden" aria-live="polite">
                     <strong id="imageModeResult"></strong>
                     <br>
                     <span id="imageDimensions"></span>
@@ -523,19 +304,12 @@
             </div>
 
             <fieldset class="visual-options">
-                <legend
-                    class="group-label"
-                    id="visible-data-title"
-                >
+                <legend class="group-label" id="visible-data-title">
                     Informações exibidas
                 </legend>
 
                 <label class="checkbox-label">
-                    <input
-                        type="checkbox"
-                        id="showDate"
-                        checked
-                    >
+                    <input type="checkbox" id="showDate" checked>
 
                     <span id="show-date-label">
                         Mostrar data
@@ -543,10 +317,7 @@
                 </label>
 
                 <label class="checkbox-label">
-                    <input
-                        type="checkbox"
-                        id="showTime"
-                    >
+                    <input type="checkbox" id="showTime">
 
                     <span id="show-time-label">
                         Mostrar hora
@@ -554,11 +325,7 @@
                 </label>
 
                 <label class="checkbox-label">
-                    <input
-                        type="checkbox"
-                        id="showType"
-                        checked
-                    >
+                    <input type="checkbox" id="showType" checked>
 
                     <span id="show-type-label">
                         Mostrar “Assinatura digital PAdES”
@@ -567,82 +334,42 @@
             </fieldset>
 
             <div class="input-group">
-                <label
-                    for="p12Input"
-                    id="certificate-label"
-                >
+                <label for="p12Input" id="certificate-label">
                     Certificado (.p12 / .pfx):
                 </label>
 
-                <input
-                    type="file"
-                    id="p12Input"
-                    accept=".p12,.pfx"
-                    autocomplete="off"
-                    aria-describedby="certificate-help error-sign"
-                >
+                <input type="file" id="p12Input" accept=".p12,.pfx" autocomplete="off"
+                    aria-describedby="certificate-help error-sign">
 
-                <p
-                    class="help"
-                    id="certificate-help"
-                >
+                <p class="help" id="certificate-help">
                     O certificado é utilizado para criar a assinatura digital do PDF.
                 </p>
             </div>
 
             <div class="input-group">
-                <label
-                    for="p12Password"
-                    id="password-label"
-                >
+                <label for="p12Password" id="password-label">
                     Senha do certificado:
                 </label>
 
-                <input
-                    type="password"
-                    id="p12Password"
-                    autocomplete="off"
-                    maxlength="512"
-                    autocapitalize="off"
-                    spellcheck="false"
-                    aria-describedby="error-sign"
-                >
+                <input type="password" id="p12Password" autocomplete="off" maxlength="512" autocapitalize="off"
+                    spellcheck="false" aria-describedby="error-sign">
             </div>
 
-            <p
-                id="error-sign"
-                class="alert"
-                role="alert"
-            ></p>
+            <p id="error-sign" class="alert" role="alert"></p>
 
             <div class="btn-group">
-                <button
-                    type="button"
-                    class="btn btn-outline"
-                    id="back-config-button"
-                >
+                <button type="button" class="btn btn-outline" id="back-config-button">
                     Voltar
                 </button>
 
-                <button
-                    type="button"
-                    class="btn"
-                    id="sign-button"
-                >
+                <button type="button" class="btn" id="sign-button">
                     Assinar documento
                 </button>
             </div>
         </section>
 
-        <section
-            id="step-5"
-            class="step success-step"
-            aria-labelledby="step-5-title"
-        >
-            <div
-                class="success-icon"
-                aria-hidden="true"
-            >
+        <section id="step-5" class="step success-step" aria-labelledby="step-5-title">
+            <div class="success-icon" aria-hidden="true">
                 ✅
             </div>
 
@@ -650,29 +377,19 @@
                 Documento assinado!
             </h2>
 
-            <p
-                id="success-description"
-                class="step-description"
-            >
+            <p id="success-description" class="step-description">
                 A assinatura digital PAdES foi aplicada com sucesso.
             </p>
 
-            <button
-                type="button"
-                class="btn btn-success hidden"
-                id="download-button"
-            >
+            <button type="button" class="btn btn-success hidden" id="download-button">
                 Baixar documento assinado
             </button>
 
-            <button
-                type="button"
-                class="btn btn-outline"
-                id="restart-button"
-            >
+            <button type="button" class="btn btn-outline" id="restart-button">
                 Assinar outro documento
             </button>
         </section>
     </main>
 </body>
+
 </html>

@@ -26,6 +26,11 @@ const MAX_IMAGE_SIZE =
 const REQUEST_TIMEOUT =
     120000;
 
+const BACKEND_STATUS_TIMEOUT =
+    90000;
+
+const BACKEND_STATUS_RETRY_INTERVAL =
+    5000;
 
 /* ==========================================
    ESTADO DA APLICAÇÃO
@@ -66,6 +71,9 @@ let signaturePos = {
     page: 1
 };
 
+let backendReady = false;
+let backendWakePromise = null;
+let backendWakeController = null;
 
 /* ==========================================
    TRADUÇÕES
@@ -309,7 +317,22 @@ const translations = {
             "Erro HTTP {status}.",
 
         signedFilenameSuffix:
-            "_assinado"
+            "_assinado",
+
+        backendStarting:
+            "Preparando serviço de assinatura...",
+
+        backendOnline:
+            "Serviço de assinatura disponível",
+
+        backendOffline:
+            "Serviço de assinatura indisponível",
+
+        backendWaking:
+            "Iniciando serviço de assinatura...",
+
+        backendSlow:
+            "O serviço está iniciando. Isso pode levar alguns segundos."
     },
 
     en: {
@@ -549,7 +572,22 @@ const translations = {
             "HTTP error {status}.",
 
         signedFilenameSuffix:
-            "_signed"
+            "_signed",
+
+        backendStarting:
+            "Preparing signing service...",
+
+        backendOnline:
+            "Signing service available",
+
+        backendOffline:
+            "Signing service unavailable",
+
+        backendWaking:
+            "Starting signing service...",
+
+        backendSlow:
+            "The service is starting. This may take a few seconds."
     }
 };
 
@@ -565,13 +603,13 @@ const savedLanguage =
 
 let currentLanguage =
     savedLanguage === "pt" ||
-    savedLanguage === "en"
+        savedLanguage === "en"
         ? savedLanguage
         : navigator.language
             .toLowerCase()
             .startsWith("pt")
-                ? "pt"
-                : "en";
+            ? "pt"
+            : "en";
 
 
 /* ==========================================
@@ -705,7 +743,7 @@ function toggleLanguage() {
         (
             !customTitleInput.value.trim() ||
             customTitleInput.value.trim() ===
-                previousDefaultTitle
+            previousDefaultTitle
         )
     ) {
         customTitleInput.value =
@@ -1025,6 +1063,16 @@ function applyTranslations() {
         language.pdfPage
     );
 
+    if (backendReady) {
+        updateBackendStatus(
+            "online"
+        );
+    } else {
+        updateBackendStatus(
+            "starting"
+        );
+    }
+
     updateStepSubtitle();
     updatePagination();
     updateImageInfo();
@@ -1124,7 +1172,7 @@ function updateStepSubtitle() {
 
     subtitle.textContent =
         t().steps[
-            step - 1
+        step - 1
         ];
 }
 
@@ -1160,7 +1208,7 @@ function goToStep(step) {
 
     announce(
         t().steps[
-            step - 1
+        step - 1
         ]
     );
 
@@ -1221,7 +1269,7 @@ async function handleFileUpload(
 
     const isPdf =
         file.type ===
-            "application/pdf" ||
+        "application/pdf" ||
         filename.endsWith(
             ".pdf"
         );
@@ -1432,7 +1480,7 @@ async function renderPage(
     const availableWidth =
         Math.max(
             container.clientWidth -
-                20,
+            20,
             100
         );
 
@@ -1685,7 +1733,7 @@ function placeSignature(
                 Math.max(
                     0,
                     rect.width -
-                        width
+                    width
                 )
             )
         );
@@ -1698,7 +1746,7 @@ function placeSignature(
                 Math.max(
                     0,
                     rect.height -
-                        height
+                    height
                 )
             )
         );
@@ -2018,7 +2066,7 @@ function updateImageMode() {
     } else {
         detectedImageMode =
             ratio >=
-            FULL_SIGNATURE_RATIO
+                FULL_SIGNATURE_RATIO
                 ? "full"
                 : "logo";
     }
@@ -2063,6 +2111,227 @@ function updateImageInfo() {
     );
 }
 
+/* ==========================================
+   BACKEND
+========================================== */
+
+function updateBackendStatus(
+    state,
+    message = null
+) {
+    const dot =
+        document.getElementById(
+            "backend-status-dot"
+        );
+
+    const text =
+        document.getElementById(
+            "backend-status-text"
+        );
+
+    if (
+        !dot ||
+        !text
+    ) {
+        return;
+    }
+
+    dot.classList.remove(
+        "backend-status-starting",
+        "backend-status-online",
+        "backend-status-offline"
+    );
+
+    if (
+        state === "online"
+    ) {
+        dot.classList.add(
+            "backend-status-online"
+        );
+
+        text.textContent =
+            message ||
+            t().backendOnline;
+
+        return;
+    }
+
+    if (
+        state === "offline"
+    ) {
+        dot.classList.add(
+            "backend-status-offline"
+        );
+
+        text.textContent =
+            message ||
+            t().backendOffline;
+
+        return;
+    }
+
+    dot.classList.add(
+        "backend-status-starting"
+    );
+
+    text.textContent =
+        message ||
+        t().backendStarting;
+}
+
+async function wakeBackend() {
+    if (backendReady) {
+        return true;
+    }
+
+    if (backendWakePromise) {
+        return backendWakePromise;
+    }
+
+    backendWakePromise =
+        (async () => {
+            updateBackendStatus(
+                "starting",
+                t().backendWaking
+            );
+
+            const startedAt =
+                Date.now();
+
+            while (
+                Date.now() -
+                startedAt <
+                BACKEND_STATUS_TIMEOUT
+            ) {
+                backendWakeController =
+                    new AbortController();
+
+                const requestTimeout =
+                    setTimeout(
+                        () => {
+                            backendWakeController
+                                ?.abort();
+                        },
+                        12000
+                    );
+
+                try {
+                    const response =
+                        await fetch(
+                            `${API_BASE_URL}/api/status`,
+                            {
+                                method:
+                                    "GET",
+
+                                cache:
+                                    "no-store",
+
+                                credentials:
+                                    "omit",
+
+                                referrerPolicy:
+                                    "no-referrer",
+
+                                signal:
+                                    backendWakeController
+                                        .signal
+                            }
+                        );
+
+                    clearTimeout(
+                        requestTimeout
+                    );
+
+                    if (
+                        response.ok
+                    ) {
+                        let data = null;
+
+                        try {
+                            data =
+                                await response.json();
+                        } catch (_) {
+                        }
+
+                        if (
+                            !data ||
+                            data.status ===
+                            "ok"
+                        ) {
+                            backendReady =
+                                true;
+
+                            updateBackendStatus(
+                                "online"
+                            );
+
+                            announce(
+                                t().backendOnline
+                            );
+
+                            return true;
+                        }
+                    }
+
+                } catch (error) {
+                    clearTimeout(
+                        requestTimeout
+                    );
+
+                    if (
+                        error.name !==
+                        "AbortError"
+                    ) {
+                        console.debug(
+                            "Backend ainda não disponível."
+                        );
+                    }
+                }
+
+                const elapsed =
+                    Date.now() -
+                    startedAt;
+
+                if (
+                    elapsed >
+                    15000
+                ) {
+                    updateBackendStatus(
+                        "starting",
+                        t().backendSlow
+                    );
+                }
+
+                await new Promise(
+                    resolve =>
+                        setTimeout(
+                            resolve,
+                            BACKEND_STATUS_RETRY_INTERVAL
+                        )
+                );
+            }
+
+            backendReady =
+                false;
+
+            updateBackendStatus(
+                "offline"
+            );
+
+            return false;
+        })();
+
+    try {
+        return await backendWakePromise;
+
+    } finally {
+        backendWakePromise =
+            null;
+
+        backendWakeController =
+            null;
+    }
+}
 
 /* ==========================================
    PRÉVIA
@@ -2139,10 +2408,10 @@ function updateSignaturePreview() {
 
     if (
         currentSignatureType ===
-            "image" &&
+        "image" &&
         customImageUrl &&
         detectedImageMode ===
-            "full"
+        "full"
     ) {
         standard.style.display =
             "none";
@@ -2176,10 +2445,10 @@ function updateSignaturePreview() {
 
     if (
         currentSignatureType ===
-            "image" &&
+        "image" &&
         customImageUrl &&
         detectedImageMode ===
-            "logo"
+        "logo"
     ) {
         logo.replaceChildren();
 
@@ -2324,6 +2593,31 @@ async function signWithBackend() {
             "p12Password"
         );
 
+    if (!backendReady) {
+        button.disabled =
+            true;
+
+        button.textContent =
+            t().backendWaking;
+
+        const ready =
+            await wakeBackend();
+
+        if (!ready) {
+            button.disabled =
+                false;
+
+            button.textContent =
+                t().sign;
+
+            showSignError(
+                t().backendOffline
+            );
+
+            return;
+        }
+    }
+
     if (
         !button ||
         !certificateInput ||
@@ -2367,7 +2661,7 @@ async function signWithBackend() {
 
     if (
         currentSignatureType ===
-            "image" &&
+        "image" &&
         !customImageFile
     ) {
         showSignError(
@@ -2456,7 +2750,7 @@ async function signWithBackend() {
 
     if (
         currentSignatureType ===
-            "image"
+        "image"
     ) {
         const imageMode =
             document.getElementById(
@@ -2535,7 +2829,7 @@ async function signWithBackend() {
 
                 if (
                     typeof data?.erro ===
-                        "string" &&
+                    "string" &&
                     data.erro.trim()
                 ) {
                     message =
@@ -3131,7 +3425,7 @@ document
                 !pdfJsDoc ||
                 scrollPageLock ||
                 currentPageNum >=
-                    totalPages
+                totalPages
             ) {
                 return;
             }
@@ -3144,7 +3438,7 @@ document
             const hasVerticalScroll =
                 container.scrollHeight >
                 container.clientHeight +
-                    2;
+                2;
 
             if (!hasVerticalScroll) {
                 return;
@@ -3152,9 +3446,9 @@ document
 
             const reachedBottom =
                 container.scrollTop +
-                    container.clientHeight >=
+                container.clientHeight >=
                 container.scrollHeight -
-                    3;
+                3;
 
             if (reachedBottom) {
                 await changePage(
@@ -3263,3 +3557,4 @@ window.addEventListener(
 initializeTheme();
 applyTranslations();
 updateSignaturePreview();
+wakeBackend();
