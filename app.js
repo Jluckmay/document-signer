@@ -227,30 +227,294 @@ function toggleLanguage() {
     updateSignaturePreview();
 }
 
+function setText(id, value) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.textContent = value;
+    }
+}
+
 function applyTranslations() {
+    const language = t();
+
     document.documentElement.lang =
-        t().htmlLang;
+        language.htmlLang;
 
     document.title =
-        t().title;
+        language.title;
+
+    setText("title", language.title);
+    setText("skip-link", language.skipLink);
+
+    setText(
+        "language-label",
+        language.languageButton
+    );
 
     document
-        .getElementById(
-            "title"
-        )
-        .textContent =
-            t().title;
+        .getElementById("language-button")
+        .setAttribute(
+            "aria-label",
+            language.languageAria
+        );
+
+    setText(
+        "theme-text",
+        language.theme
+    );
 
     document
-        .getElementById(
-            "language-label"
-        )
-        .textContent =
-            t().languageButton;
+        .getElementById("theme-button")
+        .setAttribute(
+            "aria-label",
+            language.theme
+        );
+
+    setText(
+        "step-1-title",
+        language.step1Title
+    );
+
+    setText(
+        "upload-title",
+        language.uploadTitle
+    );
+
+    setText(
+        "upload-description",
+        language.uploadDescription
+    );
+
+    setText(
+        "pdf-help",
+        language.pdfHelp
+    );
+
+    setText(
+        "step-2-title",
+        language.step2Title
+    );
+
+    setText(
+        "position-description",
+        language.positionDescription
+    );
+
+    setText(
+        "cancel-button",
+        language.cancel
+    );
+
+    setText(
+        "confirm-position-button",
+        language.confirmPosition
+    );
+
+    setText(
+        "step-3-title",
+        language.signatureTypeTitle
+    );
+
+    setText(
+        "signature-type-description",
+        language.signatureTypeDescription
+    );
+
+    setText(
+        "type-standard-title",
+        language.standard
+    );
+
+    setText(
+        "type-standard-description",
+        language.standardDescription
+    );
+
+    setText(
+        "type-simple-title",
+        language.simple
+    );
+
+    setText(
+        "type-simple-description",
+        language.simpleDescription
+    );
+
+    setText(
+        "type-image-title",
+        language.image
+    );
+
+    setText(
+        "type-image-description",
+        language.imageDescription
+    );
+
+    setText(
+        "back-type-button",
+        language.back
+    );
+
+    setText(
+        "step-4-title",
+        language.configureTitle
+    );
+
+    setText(
+        "step-4-description",
+        language.configureDescription
+    );
+
+    setText(
+        "simple-options-title",
+        language.simpleOptions
+    );
+
+    setText(
+        "custom-title-label",
+        language.customTitle
+    );
+
+    setText(
+        "image-options-title",
+        language.imageOptions
+    );
+
+    setText(
+        "image-label",
+        language.imageLabel
+    );
+
+    setText(
+        "image-help",
+        language.imageHelp
+    );
+
+    setText(
+        "image-mode-label",
+        language.imageMode
+    );
+
+    setText(
+        "image-mode-auto",
+        language.auto
+    );
+
+    setText(
+        "image-mode-full",
+        language.full
+    );
+
+    setText(
+        "image-mode-logo",
+        language.logo
+    );
+
+    setText(
+        "visible-data-title",
+        language.visibleData
+    );
+
+    setText(
+        "show-date-label",
+        language.showDate
+    );
+
+    setText(
+        "show-time-label",
+        language.showTime
+    );
+
+    setText(
+        "show-type-label",
+        language.showType
+    );
+
+    setText(
+        "certificate-label",
+        language.certificate
+    );
+
+    setText(
+        "certificate-help",
+        language.certificateHelp
+    );
+
+    setText(
+        "password-label",
+        language.password
+    );
+
+    setText(
+        "back-config-button",
+        language.back
+    );
+
+    setText(
+        "sign-button",
+        language.sign
+    );
+
+    setText(
+        "step-5-title",
+        language.successTitle
+    );
+
+    setText(
+        "success-description",
+        language.successDescription
+    );
+
+    setText(
+        "download-button",
+        language.download
+    );
+
+    setText(
+        "restart-button",
+        language.restart
+    );
+
+    document
+        .getElementById("prev-page")
+        .setAttribute(
+            "aria-label",
+            language.previousPage
+        );
+
+    document
+        .getElementById("next-page")
+        .setAttribute(
+            "aria-label",
+            language.nextPage
+        );
+
+    document
+        .getElementById("pagination")
+        .setAttribute(
+            "aria-label",
+            language.pagination
+        );
+
+    document
+        .getElementById("canvas-container")
+        .setAttribute(
+            "aria-label",
+            language.pdfPreview
+        );
+
+    document
+        .getElementById("pdf-stage")
+        .setAttribute(
+            "aria-label",
+            language.pdfPage
+        );
 
     updateStepSubtitle();
     updatePagination();
     updateImageInfo();
+    updateSignaturePreview();
 }
 
 function announce(message) {

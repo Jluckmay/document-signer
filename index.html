@@ -32,9 +32,7 @@
         "
     >
 
-    <title>
-        Assinador Digital
-    </title>
+    <title>Assinador Digital</title>
 
     <link
         rel="icon"
@@ -84,6 +82,7 @@
 
     <nav
         class="top-controls"
+        id="top-controls"
         aria-label="Preferências da página"
     >
         <button
@@ -92,9 +91,7 @@
             id="theme-button"
             aria-label="Alternar tema"
         >
-            <span
-                aria-hidden="true"
-            >
+            <span aria-hidden="true">
                 🌓
             </span>
 
@@ -112,9 +109,7 @@
             id="language-button"
             aria-label="Mudar idioma para inglês"
         >
-            <span
-                aria-hidden="true"
-            >
+            <span aria-hidden="true">
                 🌐
             </span>
 
@@ -138,8 +133,7 @@
                 id="subtitle"
                 aria-live="polite"
             >
-                Etapa 1 de 5:
-                Envio do documento
+                Etapa 1 de 5: Envio do documento
             </p>
         </header>
 
@@ -167,8 +161,7 @@
                 </span>
 
                 <strong id="upload-title">
-                    Clique para selecionar
-                    o documento
+                    Clique para selecionar o documento
                 </strong>
 
                 <span id="upload-description">
@@ -213,12 +206,12 @@
                 id="position-description"
                 class="step-description"
             >
-                Clique na página onde deseja
-                posicionar a assinatura.
+                Clique na página onde deseja posicionar a assinatura.
             </p>
 
             <div
                 class="pagination"
+                id="pagination"
                 aria-label="Navegação entre páginas"
             >
                 <button
@@ -251,12 +244,13 @@
                 tabindex="0"
                 role="region"
                 aria-label="Pré-visualização do documento PDF"
+                aria-describedby="position-description"
             >
                 <div
                     class="pdf-stage"
                     id="pdf-stage"
                     role="img"
-                    aria-label="Página do documento"
+                    aria-label="Página do documento. Clique para posicionar a assinatura."
                 >
                     <canvas
                         id="pdf-canvas"
@@ -305,9 +299,7 @@
                             id="full-preview"
                             class="full-preview"
                         >
-                            <div
-                                class="full-preview-image-area"
-                            >
+                            <div class="full-preview-image-area">
                                 <img
                                     id="full-preview-image"
                                     alt=""
@@ -348,15 +340,14 @@
             aria-labelledby="step-3-title"
         >
             <h2 id="step-3-title">
-                Qual tipo de assinatura
-                deseja utilizar?
+                Qual tipo de assinatura deseja utilizar?
             </h2>
 
             <p
                 id="signature-type-description"
                 class="step-description"
             >
-                Escolha a aparência visual.
+                Escolha apenas a aparência visual. Todas as opções continuam utilizando o certificado digital.
             </p>
 
             <div
@@ -369,16 +360,12 @@
                     class="signature-type"
                     data-signature-type="standard"
                 >
-                    <strong
-                        id="type-standard-title"
-                    >
+                    <strong id="type-standard-title">
                         Padrão
                     </strong>
 
-                    <span
-                        id="type-standard-description"
-                    >
-                        Identidade visual padrão.
+                    <span id="type-standard-description">
+                        Usa a identidade visual padrão do assinador com nome, data e informação PAdES.
                     </span>
                 </button>
 
@@ -387,16 +374,12 @@
                     class="signature-type"
                     data-signature-type="simple"
                 >
-                    <strong
-                        id="type-simple-title"
-                    >
+                    <strong id="type-simple-title">
                         Customizada simples
                     </strong>
 
-                    <span
-                        id="type-simple-description"
-                    >
-                        Personalize o texto.
+                    <span id="type-simple-description">
+                        Permite personalizar o texto e escolher as informações mostradas.
                     </span>
                 </button>
 
@@ -405,17 +388,12 @@
                     class="signature-type"
                     data-signature-type="image"
                 >
-                    <strong
-                        id="type-image-title"
-                    >
+                    <strong id="type-image-title">
                         Customizada com imagem
                     </strong>
 
-                    <span
-                        id="type-image-description"
-                    >
-                        Utilize uma imagem
-                        personalizada.
+                    <span id="type-image-description">
+                        Permite usar logotipo ou uma imagem completa de assinatura.
                     </span>
                 </button>
             </div>
@@ -442,8 +420,7 @@
                 id="step-4-description"
                 class="step-description"
             >
-                Configure a aparência e
-                informe seu certificado.
+                Configure a aparência e informe seu certificado digital.
             </p>
 
             <div
@@ -498,8 +475,7 @@
                         class="help"
                         id="image-help"
                     >
-                        PNG ou JPEG,
-                        até 2 MB.
+                        PNG ou JPEG, até 2 MB.
                     </p>
                 </div>
 
@@ -540,15 +516,9 @@
                     class="image-info hidden"
                     aria-live="polite"
                 >
-                    <strong
-                        id="imageModeResult"
-                    ></strong>
-
+                    <strong id="imageModeResult"></strong>
                     <br>
-
-                    <span
-                        id="imageDimensions"
-                    ></span>
+                    <span id="imageDimensions"></span>
                 </div>
             </div>
 
@@ -609,7 +579,15 @@
                     id="p12Input"
                     accept=".p12,.pfx"
                     autocomplete="off"
+                    aria-describedby="certificate-help error-sign"
                 >
+
+                <p
+                    class="help"
+                    id="certificate-help"
+                >
+                    O certificado é utilizado para criar a assinatura digital do PDF.
+                </p>
             </div>
 
             <div class="input-group">
@@ -627,6 +605,7 @@
                     maxlength="512"
                     autocapitalize="off"
                     spellcheck="false"
+                    aria-describedby="error-sign"
                 >
             </div>
 
@@ -675,8 +654,7 @@
                 id="success-description"
                 class="step-description"
             >
-                A assinatura digital PAdES
-                foi aplicada com sucesso.
+                A assinatura digital PAdES foi aplicada com sucesso.
             </p>
 
             <button
