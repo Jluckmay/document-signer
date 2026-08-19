@@ -412,6 +412,25 @@ Status:
 http://127.0.0.1:5000/api/status
 ```
 
+Para validar cadeias ICP-Brasil e Gov.br, as raízes oficiais ficam em
+`backend/certs/` e são carregadas automaticamente após a verificação dos hashes
+registrados em `backend/certs/SHA256SUMS`. Não é necessário configurar uma
+variável no Render para essas raízes. `VERIFIER_TRUST_ROOTS` permanece disponível
+apenas para acrescentar certificados externos explicitamente confiáveis, usando
+uma lista de caminhos separada por `:`.
+
+Certificados incluídos:
+
+- `Certificado_AC_Raiz.crt` — raiz ICP-Brasil original, para documentos históricos;
+- `ICP-Brasil.crt` e `ICP-Brasilv2.crt` — raízes históricas v1 e v2;
+- `ICP-Brasilv4.crt`, `ICP-Brasilv5.crt`, `ICP-Brasilv6.crt` e `ICP-Brasilv7.crt`;
+- `ICP-Brasilv12.crt` e `ICP-Brasilv13.crt`;
+- `GovBr_Raiz_v1.crt` — raiz da assinatura eletrônica avançada Gov.br.
+
+As raízes revogadas v3, v8 e v9 e as raízes de finalidade específica v10 (SSL)
+e v11 (assinatura de código) não fazem parte do conjunto confiável. Ao substituir
+ou acrescentar um certificado, atualize também `backend/certs/SHA256SUMS`.
+
 ### 5. Sirva o frontend
 
 Use um servidor HTTP local, como Live Server no VS Code.
@@ -472,14 +491,18 @@ A versão Desktop abre uma janela nativa e não inicia navegador ou servidor HTT
 
 ### Empacotamento como `.exe`
 
-Uma opção para distribuição no Windows é o PyInstaller. Recomenda-se testar inicialmente em modo `onedir`:
+Uma opção para distribuição no Windows é o PyInstaller em modo `--onefile`. O
+comando abaixo incorpora os certificados no executável e remove automaticamente
+os arquivos temporários se a compilação terminar com sucesso:
 
 ```powershell
 pip install pyinstaller
-pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital desktop/local.py
+$buildTemp=".pyinstaller-build-AssinadorDigital"; New-Item -ItemType Directory -Path $buildTemp -Force | Out-Null; pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital --add-data "backend/certs;backend/certs" --distpath dist --workpath "$buildTemp\work" --specpath $buildTemp desktop/local.py; if ($LASTEXITCODE -eq 0) { Remove-Item -LiteralPath $buildTemp -Recurse -Force }
 ```
 
-Depois de validar DLLs, plugins Qt, pyHanko, PyMuPDF e demais dependências, pode-se avaliar o modo `--onefile`.
+O resultado final fica em `dist\AssinadorDigital.exe`. Os arquivos de apoio do
+modo `--onedir` não podem ser removidos, pois nesse modo eles são necessários para
+executar o programa.
 
 
 ## Versão Standalone
@@ -934,6 +957,24 @@ Status endpoint:
 http://127.0.0.1:5000/api/status
 ```
 
+For ICP-Brasil and Gov.br chain validation, the official roots are stored in
+`backend/certs/` and loaded automatically after their hashes are checked against
+`backend/certs/SHA256SUMS`. No Render environment variable is required for these
+roots. `VERIFIER_TRUST_ROOTS` remains available only for explicitly trusted
+external certificates, using a colon-separated path list.
+
+Included certificates:
+
+- `Certificado_AC_Raiz.crt` — original ICP-Brasil root for historical documents;
+- `ICP-Brasil.crt` and `ICP-Brasilv2.crt` — historical v1 and v2 roots;
+- `ICP-Brasilv4.crt`, `ICP-Brasilv5.crt`, `ICP-Brasilv6.crt`, and `ICP-Brasilv7.crt`;
+- `ICP-Brasilv12.crt` and `ICP-Brasilv13.crt`;
+- `GovBr_Raiz_v1.crt` — Gov.br advanced electronic-signature root.
+
+Revoked roots v3, v8, and v9 and purpose-specific roots v10 (SSL) and v11
+(code signing) are not part of the trusted set. Update
+`backend/certs/SHA256SUMS` whenever a certificate is replaced or added.
+
 Serve the frontend through a local HTTP server, such as VS Code Live Server.
 
 Alternatively, run this command from the project root:
@@ -986,14 +1027,18 @@ The Desktop version opens a native window and does not start a web browser or HT
 
 ### Building a Windows `.exe`
 
-PyInstaller can be used as a distribution option. Start with `onedir` while validating Qt plugins and native dependencies:
+PyInstaller can build a Windows `--onefile` executable. The command below embeds
+the certificates and automatically removes temporary build files after a
+successful build:
 
 ```powershell
 pip install pyinstaller
-pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital desktop/local.py
+$buildTemp=".pyinstaller-build-AssinadorDigital"; New-Item -ItemType Directory -Path $buildTemp -Force | Out-Null; pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital --add-data "backend/certs;backend/certs" --distpath dist --workpath "$buildTemp\work" --specpath $buildTemp desktop/local.py; if ($LASTEXITCODE -eq 0) { Remove-Item -LiteralPath $buildTemp -Recurse -Force }
 ```
 
-After validating PySide6, PyMuPDF, pyHanko and other native dependencies, `--onefile` can be evaluated.
+The resulting executable is written to `dist\AssinadorDigital.exe`. Support
+files created by `--onedir` cannot be removed because that mode requires them at
+runtime.
 
 
 ## Standalone Version

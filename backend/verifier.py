@@ -3,6 +3,8 @@ import io
 import logging
 import os
 from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 
 from pyhanko.pdf_utils.reader import PdfFileReader
 from pyhanko.sign.validation import validate_pdf_signature, validate_pdf_timestamp
@@ -156,18 +158,81 @@ def certificado_para_dict(cert):
     }
 
 
+TRUST_ROOTS_DIR = Path(__file__).resolve().parent / "certs"
+TRUST_ROOTS_MANIFEST = TRUST_ROOTS_DIR / "SHA256SUMS"
+LOGGER = logging.getLogger(__name__)
+
+
+def _load_trust_roots(paths):
+    if not paths or load_certs_from_pemder is None:
+        return []
+    try:
+        return list(load_certs_from_pemder([str(path) for path in paths]))
+    except Exception as exc:
+        LOGGER.warning("Não foi possível carregar certificados de confiança: %s", exc)
+        return []
+
+
+@lru_cache(maxsize=1)
+def _trust_roots_from_manifest():
+    if load_certs_from_pemder is None or not TRUST_ROOTS_MANIFEST.is_file():
+        return ()
+
+    verified_paths = []
+    try:
+        lines = TRUST_ROOTS_MANIFEST.read_text(encoding="ascii").splitlines()
+    except OSError as exc:
+        LOGGER.warning("Não foi possível ler o manifesto de certificados: %s", exc)
+        return ()
+
+    for line_number, line in enumerate(lines, start=1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split(None, 1)
+        if len(parts) != 2:
+            LOGGER.warning("Entrada inválida no SHA256SUMS, linha %d.", line_number)
+            continue
+        expected_hash, filename = parts[0].lower(), parts[1].strip()
+        certificate_path = TRUST_ROOTS_DIR / filename
+        if (
+            len(expected_hash) != 64
+            or any(character not in "0123456789abcdef" for character in expected_hash)
+            or Path(filename).name != filename
+            or certificate_path.suffix.lower() not in {".crt", ".cer", ".pem"}
+            or not certificate_path.is_file()
+        ):
+            LOGGER.warning("Certificado inválido no SHA256SUMS, linha %d.", line_number)
+            continue
+        actual_hash = hashlib.sha256(certificate_path.read_bytes()).hexdigest()
+        if actual_hash != expected_hash:
+            LOGGER.error("Hash SHA-256 divergente para %s; certificado ignorado.", filename)
+            continue
+        verified_paths.append(certificate_path)
+
+    return tuple(_load_trust_roots(verified_paths))
+
+
 def _trust_roots_from_env():
     raw = os.environ.get("VERIFIER_TRUST_ROOTS", "").strip()
     if not raw or load_certs_from_pemder is None:
         return []
     paths = [item.strip() for item in raw.split(os.pathsep) if item.strip()]
     existing = [path for path in paths if os.path.isfile(path)]
-    if not existing:
-        return []
-    try:
-        return list(load_certs_from_pemder(existing))
-    except Exception:
-        return []
+    return _load_trust_roots(existing)
+
+
+def _trust_roots():
+    roots = list(_trust_roots_from_manifest())
+    roots.extend(_trust_roots_from_env())
+    unique = {}
+    for certificate in roots:
+        try:
+            key = hashlib.sha256(certificate.dump()).digest()
+        except Exception:
+            continue
+        unique[key] = certificate
+    return list(unique.values())
 
 
 def criar_contexto_validacao(allow_fetching=True, other_certs=None):
@@ -179,7 +244,7 @@ def criar_contexto_validacao(allow_fetching=True, other_certs=None):
     }
     if other_certs:
         kwargs["other_certs"] = list(other_certs)
-    extra_roots = _trust_roots_from_env()
+    extra_roots = _trust_roots()
     if extra_roots:
         kwargs["extra_trust_roots"] = extra_roots
     try:
