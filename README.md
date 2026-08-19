@@ -40,6 +40,8 @@ As duas versões utilizam **pyHanko** para produzir assinaturas digitais no padr
 - atualização incremental do PDF;
 - campos de assinatura com identificadores únicos;
 - nome do titular obtido diretamente do certificado;
+- placeholder de posicionamento com o ícone padrão do projeto e o texto **“Assinado digitalmente por:”**;
+- ajuste automático do tamanho da fonte para acomodar o nome completo do titular no campo visual;
 - remoção do CPF apenas da **aparência visual** quando ele estiver anexado ao `Common Name` do certificado;
 - campo visual de assinatura com **240 × 68 pontos PDF**.
 
@@ -97,6 +99,9 @@ A versão Web utiliza:
 - suporte a documentos multipágina;
 - posicionamento visual da assinatura;
 - avanço automático para a próxima página ao chegar ao fim do scroll;
+- retorno automático à página anterior ao rolar para cima no início da prévia;
+- prévia paginada tanto durante a assinatura quanto durante a verificação;
+- download do PDF assinado diretamente na tela de conclusão;
 - interface em Português e Inglês;
 - idioma inicial baseado no navegador/sistema;
 - tema claro/escuro com preferência inicial do sistema;
@@ -147,6 +152,8 @@ Ela utiliza **PySide6** para uma interface gráfica nativa e **PyMuPDF** para re
 - renderização do PDF em alta resolução com fator interno de qualidade `2.5`;
 - navegação multipágina;
 - avanço automático para a próxima página ao chegar ao fim do scroll;
+- retorno automático à página anterior ao rolar para cima no início da prévia;
+- prévia multipágina também no fluxo de verificação;
 - posicionamento visual da assinatura;
 - posicionamento acessível opcional por página e região predefinida;
 - toggle para exibir ou ocultar os controles de posicionamento acessível;
@@ -409,13 +416,19 @@ http://127.0.0.1:5000/api/status
 
 Use um servidor HTTP local, como Live Server no VS Code.
 
+Alternativamente, execute na raiz do projeto:
+
+```powershell
+py -m http.server 5500
+```
+
 Exemplo:
 
 ```text
 http://127.0.0.1:5500
 ```
 
-> Abrir `index.html` diretamente por `file://` pode impedir o funcionamento correto de recursos e políticas de segurança do navegador.
+> Não abra `index.html` diretamente por `file://`. Nesse modo, a origem da página é `null` e o backend rejeita as rotas protegidas de assinatura e verificação. Acesse o frontend por `http://127.0.0.1:5500` ou por outra origem incluída em `ALLOWED_ORIGINS`.
 
 ---
 
@@ -506,6 +519,8 @@ A acessibilidade completa não deve ser presumida apenas pelo código. Recomenda
 
 O PDF gerado contém uma assinatura digital PAdES que pode ser inspecionada por softwares e serviços compatíveis com PDF/PAdES e com a cadeia de certificação utilizada.
 
+As versões Web e Desktop exibem uma prévia multipágina do documento selecionado. No limite inferior, o scroll avança para a página seguinte; no limite superior, o scroll para cima retorna à página anterior.
+
 A indicação de confiança pode depender de fatores como:
 
 - certificado utilizado;
@@ -560,6 +575,8 @@ Both versions use **pyHanko** to create **PAdES (PDF Advanced Electronic Signatu
 - incremental PDF updates;
 - unique signature field identifiers;
 - certificate holder name obtained from the certificate;
+- placement placeholder using the project's standard icon and the text **“Digitally signed by:”**;
+- automatic font-size adjustment so the certificate holder's full name fits in the visible field;
 - CPF removal only from the **visible appearance** when appended to the certificate `Common Name`;
 - **240 × 68 PDF point** visible signature field.
 
@@ -617,6 +634,9 @@ The Web version uses:
 - multi-page documents;
 - visual signature placement;
 - automatic transition to the next page at the end of the scroll;
+- automatic return to the previous page when scrolling up at the top of the preview;
+- paginated preview during both signing and verification;
+- signed-PDF download directly from the completion screen;
 - Portuguese and English;
 - initial language based on browser/system preferences;
 - light/dark theme based initially on system preference;
@@ -667,6 +687,8 @@ It uses **PySide6** for the native GUI and **PyMuPDF** for local PDF rendering.
 - high-resolution PDF rendering with internal quality factor `2.5`;
 - multi-page navigation;
 - automatic next-page transition at the bottom of the scroll;
+- automatic previous-page transition when scrolling up at the top of the preview;
+- multi-page preview in the verification flow;
 - visual placement;
 - optional accessible placement controls using page and predefined regions;
 - toggle to show/hide accessible placement controls;
@@ -914,7 +936,13 @@ http://127.0.0.1:5000/api/status
 
 Serve the frontend through a local HTTP server, such as VS Code Live Server.
 
-> Opening `index.html` through `file://` may prevent browser features or security policies from working correctly.
+Alternatively, run this command from the project root:
+
+```powershell
+py -m http.server 5500
+```
+
+> Do not open `index.html` directly through `file://`. In that mode, the page origin is `null`, so the backend rejects protected signing and verification routes. Open `http://127.0.0.1:5500` or another origin included in `ALLOWED_ORIGINS`.
 
 ---
 
@@ -995,6 +1023,8 @@ Accessibility should not be assumed from implementation alone. Both versions sho
 ## 🔎 Signature verification
 
 The resulting PDF contains a PAdES digital signature that can be inspected by software and services compatible with PDF/PAdES and the certificate chain being used.
+
+The Web and Desktop versions provide a multi-page preview of the selected document. Scrolling at the bottom advances to the next page, while scrolling up at the top returns to the previous page.
 
 Trust indications can depend on the certificate, certificate authority, trust chain, validator policy, validation information availability, revocation status, signature profile and document usage context.
 
