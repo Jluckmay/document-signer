@@ -25,6 +25,9 @@ As duas versões utilizam **pyHanko** para produzir assinaturas digitais no padr
 
 > **Importante:** a aparência visual inserida no PDF é independente da assinatura criptográfica. Imagens, logotipos e carimbos visuais não substituem o certificado digital nem determinam, isoladamente, a validade da assinatura.
 
+>**não recomendamos a versão Web para documentos confidenciais, certificados de alto valor ou situações que exijam o maior nível possível de privacidade**.
+> Para esses casos, prefira a **versão Desktop** ou a execução da **versão Web** localmente, ambas executam o processo de assinatura localmente no computador e não precisa enviar o documento, o certificado ou a senha para o servidor do projeto.
+
 ---
 
 ## ✨ Recursos principais
@@ -516,6 +519,10 @@ The project provides two usage modes:
 Both versions use **pyHanko** to create **PAdES (PDF Advanced Electronic Signatures)** digital signatures.
 
 > **Important:** the visible appearance placed on the PDF is separate from the cryptographic signature. Images, logos and visual stamps do not replace the digital certificate and do not, by themselves, determine signature validity.
+
+> **We do not recommend the Web version for confidential documents, high-value certificates, or situations requiring the highest possible level of privacy.**
+>
+> For these cases, prefer the **Desktop version** or run the **Web version locally**. Both options perform the signing process locally on your computer, without requiring the document, certificate, or password to be sent to the project's server.
 
 ---
 
