@@ -10,6 +10,10 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import pymupdf
 from PIL import Image, UnidentifiedImageError
 from PySide6.QtCore import QPoint, QRect, QSize, Qt, QThread, QTimer, Signal
@@ -33,6 +37,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QStatusBar,
     QToolBar,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -45,6 +50,7 @@ from reportlab.lib.colors import HexColor, black, white
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
+from backend.verifier import verificar_pdf
 
 APP_NAME = "Assinador Digital"
 APP_VERSION = "1.0.0"
@@ -145,10 +151,35 @@ TRANSLATIONS = {
         "toggle_language": "Mudar idioma para inglês",
         "toggle_theme": "Alternar tema",
         "ready": "Pronto",
-        "signed_by": "Assinado digitalmente por",
+        "signed_by": "Assinado digitalmente por:",
         "password_accessible": "Senha utilizada somente para desbloquear o certificado durante a assinatura.",
         "invalid_dimensions": "Dimensões da visualização inválidas.",
         "pkcs12_error": "Não foi possível abrir o certificado. Verifique se o arquivo e a senha estão corretos.",
+        "verify_signatures": "Verificar assinaturas",
+        "verify_desc": "Analise tecnicamente assinaturas digitais incorporadas a um PDF.",
+        "verify_select": "Selecionar PDF para verificar",
+        "verify_online": "Consultar revogação online (OCSP/CRL) quando disponível",
+        "verify_processing": "Verificando assinaturas...",
+        "verify_back": "Voltar ao assinador",
+        "verify_notice": "Resultado técnico e informativo. Não substitui validadores oficiais e não determina validade jurídica.",
+        "verify_no_signatures": "Nenhuma assinatura digital incorporada foi encontrada.",
+        "verify_count": "{count} assinatura(s) encontrada(s)",
+        "verify_signer": "Titular",
+        "verify_issuer": "Emissor",
+        "verify_infrastructure": "Infraestrutura",
+        "verify_integrity": "Integridade criptográfica",
+        "verify_crypto": "Assinatura criptográfica",
+        "verify_trust": "Cadeia de confiança",
+        "verify_revocation": "Revogação",
+        "verify_valid": "Válida",
+        "verify_invalid": "Inválida",
+        "verify_verified": "Verificada",
+        "verify_not_verified": "Não verificada",
+        "verify_trusted": "Confiável no contexto atual",
+        "verify_untrusted": "Confiança não estabelecida",
+        "verify_revoked": "Revogado",
+        "verify_not_revoked": "Nenhuma revogação detectada",
+        "verify_indeterminate": "Indeterminado",
     },
     "en": {
         "app_title": "Digital Signer",
@@ -230,10 +261,35 @@ TRANSLATIONS = {
         "toggle_language": "Change language to Portuguese",
         "toggle_theme": "Toggle theme",
         "ready": "Ready",
-        "signed_by": "Digitally signed by",
+        "signed_by": "Digitally signed by:",
         "password_accessible": "Password used only to unlock the certificate during the signing process.",
         "invalid_dimensions": "Invalid preview dimensions.",
         "pkcs12_error": "Could not open the certificate. Check that the file and password are correct.",
+        "verify_signatures": "Verify signatures",
+        "verify_desc": "Technically analyse digital signatures embedded in a PDF.",
+        "verify_select": "Select PDF to verify",
+        "verify_online": "Check revocation online (OCSP/CRL) when available",
+        "verify_processing": "Verifying signatures...",
+        "verify_back": "Back to signer",
+        "verify_notice": "Technical and informational result. It does not replace official validators and does not determine legal validity.",
+        "verify_no_signatures": "No embedded digital signatures were found.",
+        "verify_count": "{count} signature(s) found",
+        "verify_signer": "Certificate holder",
+        "verify_issuer": "Issuer",
+        "verify_infrastructure": "Infrastructure",
+        "verify_integrity": "Cryptographic integrity",
+        "verify_crypto": "Cryptographic signature",
+        "verify_trust": "Trust chain",
+        "verify_revocation": "Revocation",
+        "verify_valid": "Valid",
+        "verify_invalid": "Invalid",
+        "verify_verified": "Verified",
+        "verify_not_verified": "Not verified",
+        "verify_trusted": "Trusted in the current context",
+        "verify_untrusted": "Trust not established",
+        "verify_revoked": "Revoked",
+        "verify_not_revoked": "No revocation detected",
+        "verify_indeterminate": "Indeterminate",
     },
 }
 
@@ -420,12 +476,12 @@ def criar_carimbo_textual(nome_assinante, titulo, mostrar_data, mostrar_hora, mo
         desenhar_imagem_logo(c, imagem_info)
     else:
         desenhar_identidade_padrao(c)
-    titulo = str(titulo).strip()[:60] or "Assinado digitalmente por"
+    titulo = str(titulo).strip()[:60] or "Assinado digitalmente por:"
     titulo_exibicao, tamanho_titulo = ajustar_texto_largura(titulo, "Helvetica", 7.4, 5.5, 175)
     c.setFillColor(black)
     c.setFont("Helvetica", tamanho_titulo)
     c.drawString(55, 49, titulo_exibicao)
-    nome_exibicao, tamanho_nome = ajustar_texto_largura(nome_assinante, "Helvetica-Bold", 8.2, 5.5, 175)
+    nome_exibicao, tamanho_nome = ajustar_texto_largura(nome_assinante, "Helvetica-Bold", 8.2, 3.5, 175)
     c.setFont("Helvetica-Bold", tamanho_nome)
     c.drawString(55, 38, nome_exibicao)
     texto_data = formatar_data(mostrar_data, mostrar_hora)
@@ -522,7 +578,7 @@ def assinar_documento(
             caminho_carimbo = criar_carimbo_imagem_completa(imagem_info, mostrar_data, mostrar_hora)
         else:
             if signature_type == "standard":
-                titulo = "Assinado digitalmente por"
+                titulo = "Assinado digitalmente por:"
             caminho_carimbo = criar_carimbo_textual(
                 nome_assinante,
                 titulo,
@@ -580,6 +636,24 @@ class SignWorker(QThread):
             self.failed.emit(str(exc))
 
 
+class VerifyWorker(QThread):
+    success = Signal(dict)
+    failed = Signal(str)
+
+    def __init__(self, pdf_path, allow_fetching=True, parent=None):
+        super().__init__(parent)
+        self.pdf_path = pdf_path
+        self.allow_fetching = allow_fetching
+
+    def run(self):
+        try:
+            with open(self.pdf_path, "rb") as stream:
+                result = verificar_pdf(stream, allow_fetching=self.allow_fetching)
+            self.success.emit(result)
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
 class PdfCanvas(QLabel):
     positionChanged = Signal(float, float)
 
@@ -591,6 +665,8 @@ class PdfCanvas(QLabel):
         self.display_scale = 1.0
         self.signature_left = None
         self.signature_top = None
+        self.placeholder_title = "Assinado digitalmente por:"
+        self.placeholder_name = "Nome do titular"
         self.setAccessibleName("Página do documento PDF")
         self.setAccessibleDescription("Página do documento. Clique para posicionar a assinatura.")
 
@@ -605,6 +681,11 @@ class PdfCanvas(QLabel):
     def clear_signature(self):
         self.signature_left = None
         self.signature_top = None
+        self.update()
+
+    def set_placeholder_text(self, title, name):
+        self.placeholder_title = title
+        self.placeholder_name = name
         self.update()
 
     def set_signature_position(self, left, top, emit_signal=True):
@@ -646,13 +727,59 @@ class PdfCanvas(QLabel):
             pen.setStyle(Qt.PenStyle.DashLine)
             painter.setPen(pen)
             painter.drawRect(rect)
-            painter.setPen(QColor("#1D4ED8"))
-            font = painter.font()
-            font.setBold(True)
-            font.setPointSize(8)
-            painter.setFont(font)
-            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap, "Assinatura")
+            icon_size = max(12, int(28 * self.display_scale))
+            icon_x = rect.left() + max(4, int(12 * self.display_scale))
+            icon_y = rect.center().y() - icon_size // 2
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor("#2563EB"))
+            painter.drawEllipse(icon_x, icon_y, icon_size, icon_size)
+            painter.setPen(QColor("white"))
+            icon_font = painter.font()
+            icon_font.setBold(True)
+            icon_font.setPointSizeF(max(6, 11 * self.display_scale))
+            painter.setFont(icon_font)
+            painter.drawText(
+                QRect(icon_x, icon_y, icon_size, icon_size),
+                Qt.AlignmentFlag.AlignCenter,
+                "✓",
+            )
+            text_left = icon_x + icon_size + max(5, int(8 * self.display_scale))
+            text_width = max(1, rect.right() - text_left - 4)
+            painter.setPen(QColor("#1E293B"))
+            title_font = painter.font()
+            title_font.setBold(False)
+            title_font.setPointSizeF(max(4, 6.5 * self.display_scale))
+            painter.setFont(title_font)
+            painter.drawText(text_left, rect.top() + max(9, int(17 * self.display_scale)), self.placeholder_title)
+            name_font = painter.font()
+            name_font.setBold(True)
+            name_size = max(3.5, 8.2 * self.display_scale)
+            name_font.setPointSizeF(name_size)
+            painter.setFont(name_font)
+            while name_size > 3.5 and painter.fontMetrics().horizontalAdvance(self.placeholder_name) > text_width:
+                name_size -= 0.25
+                name_font.setPointSizeF(name_size)
+                painter.setFont(name_font)
+            painter.drawText(text_left, rect.top() + max(18, int(32 * self.display_scale)), self.placeholder_name)
         painter.end()
+
+
+class PagingScrollArea(QScrollArea):
+    nextPageRequested = Signal()
+    previousPageRequested = Signal()
+
+    def wheelEvent(self, event):
+        scrollbar = self.verticalScrollBar()
+        delta = event.angleDelta().y()
+        if delta < 0 and scrollbar.value() >= scrollbar.maximum():
+            self.nextPageRequested.emit()
+            event.accept()
+            return
+        if delta > 0 and scrollbar.value() <= scrollbar.minimum():
+            self.previousPageRequested.emit()
+            event.accept()
+            return
+        super().wheelEvent(event)
 
 
 class MainWindow(QMainWindow):
@@ -677,6 +804,10 @@ class MainWindow(QMainWindow):
         self.last_output_path = None
         self.worker = None
         self.scroll_page_lock = False
+        self.verify_pdf_document = None
+        self.verify_current_page = 0
+        self.verify_total_pages = 0
+        self.verify_scroll_page_lock = False
         self.resize_timer = None
         self.setMinimumSize(900, 650)
         self.resize(1100, 780)
@@ -719,6 +850,7 @@ class MainWindow(QMainWindow):
         self.create_step_3()
         self.create_step_4()
         self.create_step_5()
+        self.create_verify_page()
         self.setStatusBar(QStatusBar())
 
     def create_toolbar(self):
@@ -755,12 +887,18 @@ class MainWindow(QMainWindow):
         self.pdf_file_label = QLabel()
         self.pdf_file_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.pdf_file_label.setWordWrap(True)
+        self.verify_entry_button = QPushButton()
+        self.verify_entry_button.setMinimumSize(300, 50)
+        self.verify_entry_button.clicked.connect(lambda: self.go_to_step(5))
+        self.verify_entry_button.setAccessibleName("Verificar assinaturas de um PDF")
         layout.addStretch()
         layout.addWidget(self.step1_title)
         layout.addWidget(self.step1_desc)
         layout.addSpacing(15)
         layout.addWidget(self.pdf_button, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.pdf_file_label)
+        layout.addSpacing(8)
+        layout.addWidget(self.verify_entry_button, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addStretch()
         self.stack.addWidget(page)
 
@@ -791,13 +929,19 @@ class MainWindow(QMainWindow):
         nav.addWidget(self.next_button)
         nav.addStretch()
         root.addLayout(nav)
-        self.scroll_area = QScrollArea()
+        self.scroll_area = PagingScrollArea()
         self.scroll_area.setWidgetResizable(False)
         self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.pdf_canvas = PdfCanvas()
         self.pdf_canvas.positionChanged.connect(self.visual_position_changed)
         self.scroll_area.setWidget(self.pdf_canvas)
         self.scroll_area.verticalScrollBar().valueChanged.connect(self.handle_pdf_scroll)
+        self.scroll_area.nextPageRequested.connect(
+            lambda: self.request_pdf_page_from_scroll(1)
+        )
+        self.scroll_area.previousPageRequested.connect(
+            lambda: self.request_pdf_page_from_scroll(-1)
+        )
         root.addWidget(self.scroll_area, 1)
         self.accessible_toggle = QCheckBox()
         self.accessible_toggle.setChecked(False)
@@ -891,7 +1035,7 @@ class MainWindow(QMainWindow):
         form = QFormLayout(content)
         form.setVerticalSpacing(12)
         self.custom_title_label = QLabel()
-        self.custom_title_input = QLineEdit("Assinado digitalmente por")
+        self.custom_title_input = QLineEdit("Assinado digitalmente por:")
         self.custom_title_input.setMaxLength(60)
         self.custom_title_input.setAccessibleName("Texto superior da assinatura")
         form.addRow(self.custom_title_label, self.custom_title_input)
@@ -986,6 +1130,72 @@ class MainWindow(QMainWindow):
         layout.addStretch()
         self.stack.addWidget(page)
 
+    def create_verify_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        self.verify_title = QLabel()
+        font = QFont()
+        font.setPointSize(15)
+        font.setBold(True)
+        self.verify_title.setFont(font)
+        self.verify_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.verify_description = QLabel()
+        self.verify_description.setWordWrap(True)
+        self.verify_description.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.verify_notice = QLabel()
+        self.verify_notice.setWordWrap(True)
+        self.verify_notice.setObjectName("VerifyNotice")
+        self.verify_online_checkbox = QCheckBox()
+        self.verify_online_checkbox.setChecked(True)
+        self.verify_select_button = QPushButton()
+        self.verify_select_button.clicked.connect(self.select_pdf_to_verify)
+        self.verify_preview_nav = QWidget()
+        verify_nav = QHBoxLayout(self.verify_preview_nav)
+        verify_nav.setContentsMargins(0, 0, 0, 0)
+        self.verify_prev_button = QPushButton("<")
+        self.verify_prev_button.clicked.connect(lambda: self.change_verify_page(-1))
+        self.verify_page_label = QLabel()
+        self.verify_page_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.verify_next_button = QPushButton(">")
+        self.verify_next_button.clicked.connect(lambda: self.change_verify_page(1))
+        verify_nav.addStretch()
+        verify_nav.addWidget(self.verify_prev_button)
+        verify_nav.addWidget(self.verify_page_label)
+        verify_nav.addWidget(self.verify_next_button)
+        verify_nav.addStretch()
+        self.verify_scroll_area = PagingScrollArea()
+        self.verify_scroll_area.setWidgetResizable(False)
+        self.verify_scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.verify_pdf_canvas = QLabel()
+        self.verify_pdf_canvas.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.verify_scroll_area.setWidget(self.verify_pdf_canvas)
+        self.verify_scroll_area.verticalScrollBar().valueChanged.connect(
+            self.handle_verify_pdf_scroll
+        )
+        self.verify_scroll_area.nextPageRequested.connect(
+            lambda: self.request_verify_page_from_scroll(1)
+        )
+        self.verify_scroll_area.previousPageRequested.connect(
+            lambda: self.request_verify_page_from_scroll(-1)
+        )
+        self.verify_preview_nav.setVisible(False)
+        self.verify_scroll_area.setVisible(False)
+        self.verify_results = QTextEdit()
+        self.verify_results.setReadOnly(True)
+        self.verify_results.setAccessibleName("Resultado da verificação de assinaturas")
+        self.verify_back_button = QPushButton()
+        self.verify_back_button.clicked.connect(lambda: self.go_to_step(0))
+        layout.addWidget(self.verify_title)
+        layout.addWidget(self.verify_description)
+        layout.addWidget(self.verify_notice)
+        layout.addWidget(self.verify_online_checkbox)
+        layout.addWidget(self.verify_select_button)
+        layout.addWidget(self.verify_preview_nav)
+        layout.addWidget(self.verify_scroll_area, 2)
+        layout.addWidget(self.verify_results, 1)
+        layout.addWidget(self.verify_back_button)
+        self.stack.addWidget(page)
+
     def apply_system_theme(self):
         try:
             scheme = QApplication.styleHints().colorScheme()
@@ -1016,7 +1226,7 @@ QFrame#Card { border: 1px solid #334155; border-radius: 10px; padding: 8px; }
 QPushButton { background: #3B82F6; color: white; border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; }
 QPushButton:hover { background: #60A5FA; }
 QPushButton:disabled { background: #475569; }
-QLineEdit, QComboBox, QSpinBox { background: #1E293B; color: #F8FAFC; border: 1px solid #475569; border-radius: 7px; padding: 8px; }
+QLineEdit, QComboBox, QSpinBox, QTextEdit { background: #1E293B; color: #F8FAFC; border: 1px solid #475569; border-radius: 7px; padding: 8px; }
 QCheckBox { spacing: 8px; }
 QScrollArea { border: 1px solid #334155; background: #111827; }
 QToolBar, QStatusBar { background: #0F172A; border: none; }
@@ -1029,7 +1239,7 @@ QFrame#Card { border: 1px solid #E2E8F0; border-radius: 10px; padding: 8px; }
 QPushButton { background: #2563EB; color: white; border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; }
 QPushButton:hover { background: #1D4ED8; }
 QPushButton:disabled { background: #94A3B8; }
-QLineEdit, QComboBox, QSpinBox { background: white; color: #1E293B; border: 1px solid #CBD5E1; border-radius: 7px; padding: 8px; }
+QLineEdit, QComboBox, QSpinBox, QTextEdit { background: white; color: #1E293B; border: 1px solid #CBD5E1; border-radius: 7px; padding: 8px; }
 QCheckBox { spacing: 8px; }
 QScrollArea { border: 1px solid #E2E8F0; background: #E2E8F0; }
 QToolBar, QStatusBar { background: #F8FAFC; border: none; }
@@ -1054,9 +1264,11 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.step1_title.setText(tr("select_pdf_title"))
         self.step1_desc.setText(tr("select_pdf_desc"))
         self.pdf_button.setText("📄  " + tr("select_pdf"))
+        self.verify_entry_button.setText("✓  " + tr("verify_signatures"))
         self.pdf_file_label.setText(f"{tr('pdf_selected')} {Path(self.pdf_path).name}" if self.pdf_path else "")
         self.position_title.setText(tr("position_title"))
         self.position_desc.setText(tr("position_desc"))
+        self.pdf_canvas.set_placeholder_text(tr("signed_by"), tr("verify_signer"))
         self.prev_button.setText("◀ " + tr("previous"))
         self.next_button.setText(tr("next") + " ▶")
         self.accessible_toggle.setText(tr("show_accessible_position"))
@@ -1113,6 +1325,12 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.success_desc.setText(tr("success_desc"))
         self.open_folder_button.setText(tr("open_folder"))
         self.restart_button.setText(tr("sign_another"))
+        self.verify_title.setText(tr("verify_signatures"))
+        self.verify_description.setText(tr("verify_desc"))
+        self.verify_notice.setText(tr("verify_notice"))
+        self.verify_online_checkbox.setText(tr("verify_online"))
+        self.verify_select_button.setText(tr("verify_select"))
+        self.verify_back_button.setText(tr("verify_back"))
         self.update_configuration_description()
         self.statusBar().showMessage(tr("ready"))
         self.update_step_label()
@@ -1120,7 +1338,11 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.update_image_detection()
 
     def update_step_label(self):
-        key = f"step_{self.stack.currentIndex() + 1}"
+        index = self.stack.currentIndex()
+        if index == 5:
+            self.step_label.setText(self.tr_text("verify_signatures"))
+            return
+        key = f"step_{index + 1}"
         self.step_label.setText(self.tr_text(key))
 
     def go_to_step(self, index):
@@ -1128,6 +1350,134 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.update_step_label()
         if index == 1:
             self.render_current_page()
+
+    def select_pdf_to_verify(self):
+        caminho, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr_text("verify_select"),
+            "",
+            "PDF (*.pdf)",
+        )
+        if not caminho:
+            return
+        try:
+            if os.path.getsize(caminho) > MAX_PDF_SIZE:
+                raise ValueError(self.tr_text("pdf_too_large"))
+            if Path(caminho).suffix.lower() != ".pdf":
+                raise ValueError(self.tr_text("invalid_pdf"))
+            documento = pymupdf.open(caminho)
+            if documento.page_count < 1:
+                documento.close()
+                raise ValueError(self.tr_text("invalid_pdf"))
+        except Exception as exc:
+            QMessageBox.warning(self, self.tr_text("error"), str(exc))
+            return
+        if self.verify_pdf_document:
+            self.verify_pdf_document.close()
+        self.verify_pdf_document = documento
+        self.verify_current_page = 0
+        self.verify_total_pages = documento.page_count
+        self.verify_preview_nav.setVisible(True)
+        self.verify_scroll_area.setVisible(True)
+        self.render_verify_page()
+        self.verify_results.clear()
+        self.stack.setCurrentIndex(5)
+        self.update_step_label()
+        self.statusBar().showMessage(self.tr_text("verify_processing"))
+        self.verify_select_button.setEnabled(False)
+        self.verify_back_button.setEnabled(False)
+        self.worker = VerifyWorker(
+            caminho,
+            allow_fetching=self.verify_online_checkbox.isChecked(),
+            parent=self,
+        )
+        self.worker.success.connect(self.verification_success)
+        self.worker.failed.connect(self.verification_failed)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.worker.start()
+
+    def verification_success(self, result):
+        self.worker = None
+        self.verify_select_button.setEnabled(True)
+        self.verify_back_button.setEnabled(True)
+        self.statusBar().showMessage(self.tr_text("ready"))
+        self.render_verification_result(result)
+
+    def verification_failed(self, message):
+        self.worker = None
+        self.verify_select_button.setEnabled(True)
+        self.verify_back_button.setEnabled(True)
+        self.statusBar().showMessage(self.tr_text("ready"))
+        self.verify_results.setPlainText(message)
+        QMessageBox.warning(self, self.tr_text("error"), message)
+
+    def _verification_value(self, value, positive, negative):
+        if value is True:
+            return positive
+        if value is False:
+            return negative
+        return self.tr_text("verify_indeterminate")
+
+    def render_verification_result(self, result):
+        tr = self.tr_text
+        lines = [tr("verify_notice"), ""]
+        signatures = result.get("assinaturas", [])
+        count = len(signatures)
+        lines.append(
+            tr("verify_count").replace("{count}", str(count))
+            if count
+            else tr("verify_no_signatures")
+        )
+        for signature in signatures:
+            cert = signature.get("certificado", {})
+            revocation = signature.get("revogacao", {})
+            integrity = self._verification_value(
+                signature.get("integridade_criptografica"),
+                tr("verify_verified"),
+                tr("verify_not_verified"),
+            )
+            crypto = self._verification_value(
+                signature.get("assinatura_criptograficamente_valida"),
+                tr("verify_valid"),
+                tr("verify_invalid"),
+            )
+            trust = self._verification_value(
+                signature.get("cadeia_confiavel"),
+                tr("verify_trusted"),
+                tr("verify_untrusted"),
+            )
+            if revocation.get("revogado") is True:
+                rev_text = tr("verify_revoked")
+            elif revocation.get("revogado") is False:
+                rev_text = tr("verify_not_revoked")
+            else:
+                rev_text = tr("verify_indeterminate")
+            lines.extend([
+                "",
+                f"--- {tr('verify_signatures')} #{signature.get('indice', '?')} ---",
+                f"{tr('verify_signer')}: {cert.get('titular') or '-'}",
+                f"{tr('verify_issuer')}: {cert.get('emissor') or '-'}",
+                f"{tr('verify_infrastructure')}: {cert.get('infraestrutura', {}).get('nome') or '-'}",
+                f"{tr('verify_integrity')}: {integrity}",
+                f"{tr('verify_crypto')}: {crypto}",
+                f"{tr('verify_trust')}: {trust}",
+                f"{tr('verify_revocation')}: {rev_text}",
+                f"Digest: {signature.get('algoritmo_digest') or '-'}",
+                f"Mecanismo / Mechanism: {signature.get('mecanismo_assinatura') or '-'}",
+                f"Cobertura / Coverage: {signature.get('cobertura') or '-'}",
+                f"Alterações / Modifications: {signature.get('nivel_modificacao') or '-'}",
+                f"SHA-256: {cert.get('sha256') or '-'}",
+            ])
+            chain = signature.get("cadeia_validacao") or []
+            if chain:
+                lines.append("Cadeia / Chain:")
+                for item in chain:
+                    lines.append(f"  • {item.get('titular') or '?'} — {item.get('emissor') or '?'}")
+            if signature.get("erro_validacao"):
+                lines.append(f"Aviso / Warning: {signature['erro_validacao']}")
+        if result.get("observacao_revogacao"):
+            lines.extend(["", result["observacao_revogacao"]])
+        self.verify_results.setPlainText("\n".join(lines))
 
     def select_pdf(self):
         caminho, _ = QFileDialog.getOpenFileName(self, self.tr_text("select_pdf_title"), "", "PDF (*.pdf)")
@@ -1156,7 +1506,100 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         except Exception as exc:
             QMessageBox.critical(self, self.tr_text("error"), str(exc))
 
-    def render_current_page(self):
+    def render_verify_page(self, scroll_to_end=False):
+        if not self.verify_pdf_document:
+            return
+        page = self.verify_pdf_document.load_page(self.verify_current_page)
+        available_width = max(500, self.verify_scroll_area.viewport().width() - 30)
+        page_width = max(1.0, float(page.rect.width))
+        page_height = max(1.0, float(page.rect.height))
+        display_scale = min(1.5, max(0.45, available_width / page_width))
+        render_scale = display_scale * PDF_RENDER_QUALITY
+        pix = page.get_pixmap(
+            matrix=pymupdf.Matrix(render_scale, render_scale), alpha=False
+        )
+        image_format = (
+            QImage.Format.Format_RGB888
+            if pix.n == 3
+            else QImage.Format.Format_RGBA8888
+        )
+        image = QImage(
+            pix.samples, pix.width, pix.height, pix.stride, image_format
+        ).copy()
+        width = max(1, round(page_width * display_scale))
+        height = max(1, round(page_height * display_scale))
+        preview = QPixmap.fromImage(image).scaled(
+            width,
+            height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self.verify_pdf_canvas.setPixmap(preview)
+        self.verify_pdf_canvas.setFixedSize(preview.size())
+        self.verify_page_label.setText(
+            self.tr_text("page")
+            .replace("{current}", str(self.verify_current_page + 1))
+            .replace("{total}", str(self.verify_total_pages))
+        )
+        self.verify_prev_button.setEnabled(self.verify_current_page > 0)
+        self.verify_next_button.setEnabled(
+            self.verify_current_page < self.verify_total_pages - 1
+        )
+        self.verify_scroll_page_lock = True
+        scrollbar = self.verify_scroll_area.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum() if scroll_to_end else 0)
+        QTimer.singleShot(350, self.unlock_verify_page_scroll)
+
+    def unlock_verify_page_scroll(self):
+        self.verify_scroll_page_lock = False
+
+    def handle_verify_pdf_scroll(self, value):
+        if (
+            not self.verify_pdf_document
+            or self.verify_scroll_page_lock
+            or self.verify_current_page >= self.verify_total_pages - 1
+        ):
+            return
+        scrollbar = self.verify_scroll_area.verticalScrollBar()
+        if scrollbar.maximum() > 0 and value >= scrollbar.maximum() - 3:
+            self.verify_scroll_page_lock = True
+            QTimer.singleShot(150, self.go_to_next_verify_page_from_scroll)
+
+    def request_verify_page_from_scroll(self, offset):
+        if self.verify_scroll_page_lock:
+            return
+        target = self.verify_current_page + offset
+        if not 0 <= target < self.verify_total_pages:
+            return
+        self.verify_scroll_page_lock = True
+        callback = (
+            self.go_to_next_verify_page_from_scroll
+            if offset > 0
+            else self.go_to_previous_verify_page_from_scroll
+        )
+        QTimer.singleShot(100, callback)
+
+    def go_to_next_verify_page_from_scroll(self):
+        if self.verify_current_page >= self.verify_total_pages - 1:
+            self.verify_scroll_page_lock = False
+            return
+        self.verify_current_page += 1
+        self.render_verify_page()
+
+    def go_to_previous_verify_page_from_scroll(self):
+        if self.verify_current_page <= 0:
+            self.verify_scroll_page_lock = False
+            return
+        self.verify_current_page -= 1
+        self.render_verify_page(scroll_to_end=True)
+
+    def change_verify_page(self, offset):
+        target = self.verify_current_page + offset
+        if 0 <= target < self.verify_total_pages:
+            self.verify_current_page = target
+            self.render_verify_page()
+
+    def render_current_page(self, scroll_to_end=False):
         if not self.pdf_document:
             return
         page = self.pdf_document.load_page(self.current_page)
@@ -1185,7 +1628,8 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
             self.pdf_canvas.set_signature_position(self.position_left_px, self.position_top_px, emit_signal=False)
         self.update_page_label()
         self.scroll_page_lock = True
-        self.scroll_area.verticalScrollBar().setValue(0)
+        scrollbar = self.scroll_area.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum() if scroll_to_end else 0)
         QTimer.singleShot(350, self.unlock_page_scroll)
 
     def unlock_page_scroll(self):
@@ -1200,6 +1644,18 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
             self.scroll_page_lock = True
             QTimer.singleShot(150, self.go_to_next_page_from_scroll)
 
+    def request_pdf_page_from_scroll(self, offset):
+        if self.scroll_page_lock:
+            return
+        target = self.current_page + offset
+        if not 0 <= target < self.total_pages:
+            return
+        self.scroll_page_lock = True
+        if offset > 0:
+            QTimer.singleShot(100, self.go_to_next_page_from_scroll)
+        else:
+            QTimer.singleShot(100, self.go_to_previous_page_from_scroll)
+
     def go_to_next_page_from_scroll(self):
         if self.current_page >= self.total_pages - 1:
             self.scroll_page_lock = False
@@ -1207,6 +1663,14 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.current_page += 1
         self.accessible_page_spin.setValue(self.current_page + 1)
         self.render_current_page()
+
+    def go_to_previous_page_from_scroll(self):
+        if self.current_page <= 0:
+            self.scroll_page_lock = False
+            return
+        self.current_page -= 1
+        self.accessible_page_spin.setValue(self.current_page + 1)
+        self.render_current_page(scroll_to_end=True)
 
     def change_page(self, offset):
         new_page = self.current_page + offset
@@ -1490,19 +1954,36 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.pdf_canvas.clear()
         self.pdf_canvas.source_pixmap = None
         self.pdf_canvas.setFixedSize(QSize(1, 1))
+        if hasattr(self, "verify_results"):
+            self.verify_results.clear()
+        if self.verify_pdf_document:
+            try:
+                self.verify_pdf_document.close()
+            except Exception:
+                pass
+        self.verify_pdf_document = None
+        self.verify_current_page = 0
+        self.verify_total_pages = 0
+        self.verify_pdf_canvas.clear()
+        self.verify_pdf_canvas.setFixedSize(QSize(1, 1))
+        self.verify_preview_nav.setVisible(False)
+        self.verify_scroll_area.setVisible(False)
         self.retranslate_ui()
         self.update_signature_configuration()
         self.go_to_step(0)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if self.stack.currentIndex() != 1 or not self.pdf_document:
-            return
         if self.resize_timer:
             self.resize_timer.stop()
         self.resize_timer = QTimer(self)
         self.resize_timer.setSingleShot(True)
-        self.resize_timer.timeout.connect(self.render_current_page)
+        if self.stack.currentIndex() == 1 and self.pdf_document:
+            self.resize_timer.timeout.connect(self.render_current_page)
+        elif self.stack.currentIndex() == 5 and self.verify_pdf_document:
+            self.resize_timer.timeout.connect(self.render_verify_page)
+        else:
+            return
         self.resize_timer.start(180)
 
     def closeEvent(self, event):
@@ -1512,6 +1993,11 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         if self.pdf_document:
             try:
                 self.pdf_document.close()
+            except Exception:
+                pass
+        if self.verify_pdf_document:
+            try:
+                self.verify_pdf_document.close()
             except Exception:
                 pass
         event.accept()

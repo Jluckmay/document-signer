@@ -383,8 +383,14 @@ pip install -r backend/requirements.txt
 
 A partir da raiz:
 
-```bash
+```powershell
 python backend/app.py
+```
+
+No Windows, se o comando `python` não estiver disponível, use:
+
+```powershell
+py backend/app.py
 ```
 
 Por padrão:
@@ -440,6 +446,14 @@ Execute:
 ```powershell
 python desktop/local.py
 ```
+
+Execute o comando na raiz do repositório, onde estão as pastas `desktop` e `backend`. No Windows, se `python` não estiver disponível no `PATH`, use:
+
+```powershell
+py desktop/local.py
+```
+
+O módulo compartilhado `backend/verifier.py` é carregado automaticamente pela aplicação Desktop. Não é necessário copiar `verifier.py` para a pasta `desktop`.
 
 A versão Desktop abre uma janela nativa e não inicia navegador ou servidor HTTP.
 
@@ -880,9 +894,11 @@ pip install -r backend/requirements.txt
 
 Start the backend from the repository root:
 
-```bash
+```powershell
 python backend/app.py
 ```
+
+On Windows, use `py backend/app.py` if the `python` command is not available.
 
 Default local endpoint:
 
@@ -929,6 +945,14 @@ Run:
 ```powershell
 python desktop/local.py
 ```
+
+Run this command from the repository root, which contains both `desktop` and `backend`. On Windows, use the following command if `python` is not available on `PATH`:
+
+```powershell
+py desktop/local.py
+```
+
+The Desktop application automatically loads the shared `backend/verifier.py` module. There is no need to copy `verifier.py` into the `desktop` directory.
 
 The Desktop version opens a native window and does not start a web browser or HTTP server.
 

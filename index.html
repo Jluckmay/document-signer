@@ -85,14 +85,69 @@
                     Preparando serviço de assinatura...
                 </span>
             </div>
+
+            <div class="mode-switch" id="mode-switch" role="group" aria-label="Modo da aplicação">
+                <button type="button" class="mode-button active" id="mode-sign-button" aria-pressed="true">
+                    ✍ <span id="mode-sign-label">Assinar</span>
+                </button>
+                <button type="button" class="mode-button" id="mode-verify-button" aria-pressed="false">
+                    ✓ <span id="mode-verify-label">Verificar</span>
+                </button>
+            </div>
         </header>
+
+        <section id="verify-panel" class="verify-panel" aria-labelledby="verify-title" hidden>
+            <h2 id="verify-title">Verificar assinaturas</h2>
+            <p id="verify-description" class="step-description">
+                Analise tecnicamente assinaturas digitais incorporadas a um PDF.
+            </p>
+
+            <div class="verification-notice" role="note">
+                <strong id="verify-notice-title">Verificação técnica</strong>
+                <p id="verify-notice-text">
+                    O resultado é informativo e não substitui validadores oficiais nem determina validade jurídica.
+                </p>
+            </div>
+
+            <label class="upload-area compact" for="verify-pdf-input">
+                <span class="upload-icon" aria-hidden="true">📄</span>
+                <strong id="verify-upload-title">Selecionar PDF assinado</strong>
+                <span id="verify-upload-description">O certificado e a senha não são necessários para verificar.</span>
+                <input type="file" id="verify-pdf-input" accept="application/pdf,.pdf" aria-describedby="verify-help verify-error">
+            </label>
+
+            <p class="help" id="verify-help">A versão Web envia somente o PDF ao backend para análise.</p>
+            <p id="verify-file-name" class="help" aria-live="polite"></p>
+
+            <div id="verify-preview" class="verify-preview hidden">
+                <div class="pagination" aria-label="Navegação da pré-visualização">
+                    <button type="button" id="verify-prev-page" aria-label="Página anterior">◀</button>
+                    <span id="verify-page-indicator" aria-live="polite">Página 1 de 1</span>
+                    <button type="button" id="verify-next-page" aria-label="Próxima página">▶</button>
+                </div>
+                <div id="verify-canvas-container" class="canvas-wrapper verify-canvas-wrapper">
+                    <canvas id="verify-pdf-canvas" aria-label="Pré-visualização do PDF selecionado"></canvas>
+                </div>
+            </div>
+
+            <label class="checkbox-label verify-option">
+                    <input type="checkbox" id="verify-revocation" checked>
+                <span id="verify-revocation-label">Permitir consultas online de revogação (OCSP/CRL) quando disponíveis</span>
+            </label>
+
+            <p id="verify-error" class="alert" role="alert"></p>
+
+            <button type="button" class="btn" id="verify-button">Verificar assinaturas</button>
+
+            <div id="verification-results" class="verify-results hidden" aria-live="polite" aria-atomic="false"></div>
+        </section>
 
         <section id="step-1" class="step active" aria-labelledby="step-1-title">
             <h2 id="step-1-title" class="sr-only">
                 Envio do documento
             </h2>
 
-            <label class="upload-area" for="fileInput">
+            <label class="upload-area" for="pdf-input">
                 <span class="upload-icon" aria-hidden="true">
                     📄
                 </span>
@@ -105,7 +160,7 @@
                     ou escolha um arquivo PDF
                 </span>
 
-                <input type="file" id="fileInput" accept="application/pdf,.pdf" aria-describedby="pdf-help error-pdf">
+                <input type="file" id="pdf-input" accept="application/pdf,.pdf" aria-describedby="pdf-help error-pdf">
             </label>
 
             <p class="help" id="pdf-help">
@@ -250,11 +305,11 @@
                 </h3>
 
                 <div class="input-group">
-                    <label for="customTitle" id="custom-title-label">
+                    <label for="custom-title" id="custom-title-label">
                         Texto superior:
                     </label>
 
-                    <input type="text" id="customTitle" maxlength="60" value="Assinado digitalmente por">
+                    <input type="text" id="custom-title" maxlength="60" value="Assinado digitalmente por">
                 </div>
             </div>
 
@@ -264,12 +319,12 @@
                 </h3>
 
                 <div class="input-group">
-                    <label for="signatureImage" id="image-label">
+                    <label for="signature-image-input" id="image-label">
                         Imagem:
                     </label>
 
-                    <input type="file" id="signatureImage" accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-                        aria-describedby="image-help imageInfo">
+                    <input type="file" id="signature-image-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                        aria-describedby="image-help image-info">
 
                     <p class="help" id="image-help">
                         PNG ou JPEG, até 2 MB.
@@ -277,11 +332,11 @@
                 </div>
 
                 <div class="input-group">
-                    <label for="imageMode" id="image-mode-label">
+                    <label for="image-mode" id="image-mode-label">
                         Tratamento da imagem:
                     </label>
 
-                    <select id="imageMode">
+                    <select id="image-mode">
                         <option value="auto" id="image-mode-auto">
                             Detectar automaticamente
                         </option>
@@ -296,20 +351,20 @@
                     </select>
                 </div>
 
-                <div id="imageInfo" class="image-info hidden" aria-live="polite">
-                    <strong id="imageModeResult"></strong>
+                    <div id="image-info" class="image-info hidden" aria-live="polite">
+                        <strong id="image-mode-result"></strong>
                     <br>
-                    <span id="imageDimensions"></span>
+                        <span id="image-dimensions"></span>
                 </div>
             </div>
 
-            <fieldset class="visual-options">
+            <fieldset class="visual-options" id="visible-data-options">
                 <legend class="group-label" id="visible-data-title">
                     Informações exibidas
                 </legend>
 
                 <label class="checkbox-label">
-                    <input type="checkbox" id="showDate" checked>
+                            <input type="checkbox" id="show-date" checked>
 
                     <span id="show-date-label">
                         Mostrar data
@@ -317,7 +372,7 @@
                 </label>
 
                 <label class="checkbox-label">
-                    <input type="checkbox" id="showTime">
+                            <input type="checkbox" id="show-time">
 
                     <span id="show-time-label">
                         Mostrar hora
@@ -325,7 +380,7 @@
                 </label>
 
                 <label class="checkbox-label">
-                    <input type="checkbox" id="showType" checked>
+                            <input type="checkbox" id="show-type" checked>
 
                     <span id="show-type-label">
                         Mostrar “Assinatura digital PAdES”
@@ -334,11 +389,11 @@
             </fieldset>
 
             <div class="input-group">
-                <label for="p12Input" id="certificate-label">
+                    <label for="certificate-input" id="certificate-label">
                     Certificado (.p12 / .pfx):
                 </label>
 
-                <input type="file" id="p12Input" accept=".p12,.pfx" autocomplete="off"
+                    <input type="file" id="certificate-input" accept=".p12,.pfx" autocomplete="off"
                     aria-describedby="certificate-help error-sign">
 
                 <p class="help" id="certificate-help">
@@ -347,15 +402,15 @@
             </div>
 
             <div class="input-group">
-                <label for="p12Password" id="password-label">
+                    <label for="certificate-password" id="password-label">
                     Senha do certificado:
                 </label>
 
-                <input type="password" id="p12Password" autocomplete="off" maxlength="512" autocapitalize="off"
+                    <input type="password" id="certificate-password" autocomplete="off" maxlength="512" autocapitalize="off"
                     spellcheck="false" aria-describedby="error-sign">
             </div>
 
-            <p id="error-sign" class="alert" role="alert"></p>
+            <p id="sign-error" class="alert" role="alert"></p>
 
             <div class="btn-group">
                 <button type="button" class="btn btn-outline" id="back-config-button">
@@ -381,7 +436,7 @@
                 A assinatura digital PAdES foi aplicada com sucesso.
             </p>
 
-            <button type="button" class="btn btn-success hidden" id="download-button">
+            <button type="button" class="btn btn-success" id="download-button" hidden>
                 Baixar documento assinado
             </button>
 

@@ -31,6 +31,11 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
+if __package__:
+    from .verifier import verificar_pdf
+else:
+    from verifier import verificar_pdf
+
 
 app = Flask(__name__)
 
@@ -368,7 +373,7 @@ def validar_config_visual(config):
 
     titulo = config.get(
         "titulo",
-        "Assinado digitalmente por",
+        "Assinado digitalmente por:",
     )
 
     if not isinstance(titulo, str):
@@ -384,7 +389,7 @@ def validar_config_visual(config):
 
     config["titulo"] = (
         titulo
-        or "Assinado digitalmente por"
+        or "Assinado digitalmente por:"
     )
 
     for campo, padrao in (
@@ -860,7 +865,7 @@ def criar_carimbo_padrao(
             nome_assinante,
             "Helvetica-Bold",
             8.2,
-            5.5,
+            3.5,
             175,
         )
     )
@@ -1226,7 +1231,7 @@ def protecoes_antes_da_requisicao():
 
     if (
         request.method == "POST"
-        and request.path == "/api/assinar"
+        and request.path in {"/api/assinar", "/api/verificar"}
     ):
         content_type = (
             request.content_type or ""
@@ -1706,7 +1711,7 @@ def assinar_pdf():
             config[
                 "titulo"
             ] = (
-                "Assinado digitalmente por"
+                "Assinado digitalmente por:"
             )
 
             caminho_carimbo = (
@@ -1878,6 +1883,43 @@ def assinar_pdf():
         remover_arquivo(
             caminho_carimbo
         )
+
+
+@app.post("/api/verificar")
+@limiter.limit("10 per minute;40 per hour")
+def verificar_assinaturas():
+    try:
+        documento = request.files.get("documento")
+        if not documento or not documento.filename:
+            return jsonify({"erro": "Documento PDF ausente."}), 400
+        pdf_bytes = documento.read(MAX_PDF_SIZE + 1)
+        if not pdf_bytes:
+            return jsonify({"erro": "O documento PDF está vazio."}), 400
+        validar_tamanho_bytes(
+            pdf_bytes,
+            MAX_PDF_SIZE,
+            "O documento PDF deve ter no máximo 25 MB.",
+        )
+        inicio_pdf = pdf_bytes.find(b"%PDF", 0, 1024)
+        if inicio_pdf == -1:
+            return jsonify({"erro": "O documento enviado não possui cabeçalho PDF válido."}), 400
+        pdf_bytes = pdf_bytes[inicio_pdf:]
+        allow_fetching = request.form.get("consultar_revogacao", "true").strip().lower() != "false"
+        resultado = verificar_pdf(
+            io.BytesIO(pdf_bytes),
+            allow_fetching=allow_fetching,
+        )
+        return jsonify(resultado), 200
+    except ValueError as erro:
+        return jsonify({"erro": str(erro)}), 400
+    except Exception:
+        app.logger.exception("Falha interna durante verificação do PDF.")
+        return jsonify({
+            "erro": (
+                "Não foi possível verificar as assinaturas do documento. "
+                "Confirme se o arquivo é um PDF válido."
+            )
+        }), 500
 
 
 @app.errorhandler(400)
