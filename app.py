@@ -1237,12 +1237,13 @@ def protecoes_antes_da_requisicao():
                 "erro": "Content-Type inválido."
             }), 415
         
-@app.route("/api/status", methods=["GET"])
+@app.get("/api/status")
+@limiter.exempt
 def status():
     return jsonify({
         "status": "ok",
-        "servico": "assinador-digital"
-    }), 200
+        "servico": "assinador-digital",
+    })
 
 @app.after_request
 def adicionar_headers_seguranca(response):
@@ -1302,18 +1303,6 @@ def adicionar_headers_seguranca(response):
 
     return response
 
-
-@app.get(
-    "/api/status"
-)
-@limiter.exempt
-def status():
-    return jsonify({
-        "status": "ok",
-        "servico": (
-            "assinador-digital"
-        ),
-    })
 
 
 @app.post(
