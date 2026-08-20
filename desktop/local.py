@@ -13,6 +13,9 @@ from zoneinfo import ZoneInfo
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+BACKEND_DIR = PROJECT_ROOT / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 import pymupdf
 from PIL import Image, UnidentifiedImageError
@@ -50,7 +53,7 @@ from reportlab.lib.colors import HexColor, black, white
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
-from backend.verifier import verificar_pdf
+from verifier import verificar_pdf
 
 APP_NAME = "Assinador Digital"
 APP_VERSION = "1.0.0"
@@ -160,6 +163,8 @@ TRANSLATIONS = {
         "verify_select": "Selecionar PDF para verificar",
         "verify_online": "Consultar revogação online (OCSP/CRL) quando disponível",
         "verify_processing": "Verificando assinaturas...",
+        "verify_show_report": "Exibir relatório",
+        "verify_show_pdf": "Exibir PDF",
         "verify_back": "Voltar ao assinador",
         "verify_notice": "Resultado técnico e informativo. Não substitui validadores oficiais e não determina validade jurídica.",
         "verify_no_signatures": "Nenhuma assinatura digital incorporada foi encontrada.",
@@ -180,6 +185,10 @@ TRANSLATIONS = {
         "verify_revoked": "Revogado",
         "verify_not_revoked": "Nenhuma revogação detectada",
         "verify_indeterminate": "Indeterminado",
+        "open_pdf_title": "Abrir documento PDF",
+        "open_pdf_choice": "O que deseja fazer com o documento selecionado?",
+        "open_pdf_sign": "Assinar",
+        "open_pdf_verify": "Verificar",
     },
     "en": {
         "app_title": "Digital Signer",
@@ -270,6 +279,8 @@ TRANSLATIONS = {
         "verify_select": "Select PDF to verify",
         "verify_online": "Check revocation online (OCSP/CRL) when available",
         "verify_processing": "Verifying signatures...",
+        "verify_show_report": "Show report",
+        "verify_show_pdf": "Show PDF",
         "verify_back": "Back to signer",
         "verify_notice": "Technical and informational result. It does not replace official validators and does not determine legal validity.",
         "verify_no_signatures": "No embedded digital signatures were found.",
@@ -290,6 +301,10 @@ TRANSLATIONS = {
         "verify_revoked": "Revoked",
         "verify_not_revoked": "No revocation detected",
         "verify_indeterminate": "Indeterminate",
+        "open_pdf_title": "Open PDF document",
+        "open_pdf_choice": "What would you like to do with the selected document?",
+        "open_pdf_sign": "Sign",
+        "open_pdf_verify": "Verify",
     },
 }
 
@@ -857,6 +872,7 @@ class MainWindow(QMainWindow):
         self.verify_total_pages = 0
         self.verify_scroll_page_lock = False
         self.resize_timer = None
+        self.setAcceptDrops(True)
         self.setMinimumSize(900, 650)
         self.resize(1100, 780)
         self.create_ui()
@@ -1217,6 +1233,22 @@ class MainWindow(QMainWindow):
         self.verify_online_checkbox.setChecked(True)
         self.verify_select_button = QPushButton()
         self.verify_select_button.clicked.connect(self.select_pdf_to_verify)
+        self.verify_view_controls = QWidget()
+        verify_view_controls_layout = QHBoxLayout(self.verify_view_controls)
+        verify_view_controls_layout.setContentsMargins(0, 0, 0, 0)
+        self.verify_report_view_button = QPushButton()
+        self.verify_report_view_button.setCheckable(True)
+        self.verify_report_view_button.clicked.connect(
+            lambda: self.set_verify_view(0)
+        )
+        self.verify_pdf_view_button = QPushButton()
+        self.verify_pdf_view_button.setCheckable(True)
+        self.verify_pdf_view_button.clicked.connect(lambda: self.set_verify_view(1))
+        verify_view_controls_layout.addStretch()
+        verify_view_controls_layout.addWidget(self.verify_report_view_button)
+        verify_view_controls_layout.addWidget(self.verify_pdf_view_button)
+        verify_view_controls_layout.addStretch()
+        self.verify_view_controls.setVisible(False)
         self.verify_preview_nav = QWidget()
         verify_nav = QHBoxLayout(self.verify_preview_nav)
         verify_nav.setContentsMargins(0, 0, 0, 0)
@@ -1247,23 +1279,42 @@ class MainWindow(QMainWindow):
         self.verify_scroll_area.previousPageRequested.connect(
             lambda: self.request_verify_page_from_scroll(-1)
         )
-        self.verify_preview_nav.setVisible(False)
-        self.verify_scroll_area.setVisible(False)
+        self.verify_pdf_view = QWidget()
+        verify_pdf_layout = QVBoxLayout(self.verify_pdf_view)
+        verify_pdf_layout.setContentsMargins(0, 0, 0, 0)
+        verify_pdf_layout.addWidget(self.verify_preview_nav)
+        verify_pdf_layout.addWidget(self.verify_scroll_area, 1)
         self.verify_results = QTextEdit()
         self.verify_results.setReadOnly(True)
         self.verify_results.setAccessibleName("Resultado da verificação de assinaturas")
         self.verify_back_button = QPushButton()
         self.verify_back_button.clicked.connect(lambda: self.go_to_step(0))
+        self.verify_content_stack = QStackedWidget()
+        self.verify_content_stack.addWidget(self.verify_results)
+        self.verify_content_stack.addWidget(self.verify_pdf_view)
+        self.verify_content_stack.setCurrentIndex(0)
+        self.verify_report_view_button.setChecked(True)
         layout.addWidget(self.verify_title)
         layout.addWidget(self.verify_description)
         layout.addWidget(self.verify_notice)
         layout.addWidget(self.verify_online_checkbox)
         layout.addWidget(self.verify_select_button)
-        layout.addWidget(self.verify_preview_nav)
-        layout.addWidget(self.verify_scroll_area, 2)
-        layout.addWidget(self.verify_results, 1)
+        layout.addWidget(self.verify_view_controls)
+        layout.addWidget(self.verify_content_stack, 1)
         layout.addWidget(self.verify_back_button)
         self.stack.addWidget(page)
+
+    def set_verify_view(self, index):
+        if index == 1 and not self.verify_pdf_document:
+            index = 0
+        self.verify_content_stack.setCurrentIndex(index)
+        self.verify_report_view_button.setChecked(index == 0)
+        self.verify_pdf_view_button.setChecked(index == 1)
+        if index == 1:
+            QTimer.singleShot(0, self.render_verify_page)
+            QTimer.singleShot(0, self.verify_scroll_area.setFocus)
+        else:
+            QTimer.singleShot(0, self.verify_results.setFocus)
 
     def apply_system_theme(self):
         try:
@@ -1414,6 +1465,10 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.verify_notice.setText(tr("verify_notice"))
         self.verify_online_checkbox.setText(tr("verify_online"))
         self.verify_select_button.setText(tr("verify_select"))
+        self.verify_report_view_button.setText(tr("verify_show_report"))
+        self.verify_pdf_view_button.setText(tr("verify_show_pdf"))
+        self.verify_report_view_button.setAccessibleName(tr("verify_show_report"))
+        self.verify_pdf_view_button.setAccessibleName(tr("verify_show_pdf"))
         self.verify_back_button.setText(tr("verify_back"))
         self.verify_prev_button.setAccessibleName(tr("previous"))
         self.verify_next_button.setAccessibleName(tr("next"))
@@ -1455,6 +1510,70 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         if target and target.isVisible() and target.isEnabled():
             target.setFocus(Qt.FocusReason.OtherFocusReason)
 
+    def dragEnterEvent(self, event):
+        urls = event.mimeData().urls() if event.mimeData().hasUrls() else []
+        if len(urls) == 1 and urls[0].isLocalFile():
+            path = Path(urls[0].toLocalFile())
+            if path.suffix.lower() == ".pdf":
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+    def dropEvent(self, event):
+        urls = event.mimeData().urls() if event.mimeData().hasUrls() else []
+        if len(urls) == 1 and urls[0].isLocalFile():
+            event.acceptProposedAction()
+            self.open_dropped_pdf(urls[0].toLocalFile())
+            return
+        event.ignore()
+
+    def open_dropped_pdf(self, caminho):
+        current_page = self.stack.currentIndex()
+        if current_page == 0:
+            self.open_external_pdf(caminho)
+        elif current_page == 5:
+            self.load_pdf_for_verification(caminho)
+        else:
+            self.load_pdf_for_signing(caminho)
+
+    def open_external_pdf(self, caminho):
+        path = Path(caminho).expanduser()
+        try:
+            path = path.resolve(strict=True)
+            if not path.is_file() or path.suffix.lower() != ".pdf":
+                raise ValueError(self.tr_text("invalid_pdf"))
+        except Exception as exc:
+            QMessageBox.warning(self, self.tr_text("error"), str(exc))
+            return
+
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle(self.tr_text("open_pdf_title"))
+        dialog.setText(self.tr_text("open_pdf_choice"))
+        dialog.setInformativeText(path.name)
+        sign_button = dialog.addButton(
+            self.tr_text("open_pdf_sign"), QMessageBox.ButtonRole.AcceptRole
+        )
+        verify_button = dialog.addButton(
+            self.tr_text("open_pdf_verify"), QMessageBox.ButtonRole.ActionRole
+        )
+        dialog.addButton(QMessageBox.StandardButton.Cancel)
+        dialog.exec()
+        if dialog.clickedButton() is sign_button:
+            self.load_pdf_for_signing(str(path))
+        elif dialog.clickedButton() is verify_button:
+            self.load_pdf_for_verification(str(path))
+
+    def _open_valid_pdf(self, caminho):
+        if os.path.getsize(caminho) > MAX_PDF_SIZE:
+            raise ValueError(self.tr_text("pdf_too_large"))
+        if Path(caminho).suffix.lower() != ".pdf":
+            raise ValueError(self.tr_text("invalid_pdf"))
+        documento = pymupdf.open(caminho)
+        if documento.page_count < 1:
+            documento.close()
+            raise ValueError(self.tr_text("invalid_pdf"))
+        return documento
+
     def select_pdf_to_verify(self):
         caminho, _ = QFileDialog.getOpenFileName(
             self,
@@ -1464,15 +1583,11 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         )
         if not caminho:
             return
+        self.load_pdf_for_verification(caminho)
+
+    def load_pdf_for_verification(self, caminho):
         try:
-            if os.path.getsize(caminho) > MAX_PDF_SIZE:
-                raise ValueError(self.tr_text("pdf_too_large"))
-            if Path(caminho).suffix.lower() != ".pdf":
-                raise ValueError(self.tr_text("invalid_pdf"))
-            documento = pymupdf.open(caminho)
-            if documento.page_count < 1:
-                documento.close()
-                raise ValueError(self.tr_text("invalid_pdf"))
+            documento = self._open_valid_pdf(caminho)
         except Exception as exc:
             QMessageBox.warning(self, self.tr_text("error"), str(exc))
             return
@@ -1481,10 +1596,10 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.verify_pdf_document = documento
         self.verify_current_page = 0
         self.verify_total_pages = documento.page_count
-        self.verify_preview_nav.setVisible(True)
-        self.verify_scroll_area.setVisible(True)
-        self.render_verify_page()
-        self.verify_results.clear()
+        self.verify_view_controls.setVisible(True)
+        self.verify_pdf_view_button.setEnabled(True)
+        self.verify_results.setPlainText(self.tr_text("verify_processing"))
+        self.set_verify_view(0)
         self.stack.setCurrentIndex(5)
         self.update_step_label()
         self.statusBar().showMessage(self.tr_text("verify_processing"))
@@ -1506,7 +1621,7 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.verify_back_button.setEnabled(True)
         self.statusBar().showMessage(self.tr_text("ready"))
         self.render_verification_result(result)
-        QTimer.singleShot(0, self.verify_results.setFocus)
+        self.set_verify_view(0)
 
     def verification_failed(self, message):
         self.worker = None
@@ -1514,7 +1629,7 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.verify_back_button.setEnabled(True)
         self.statusBar().showMessage(self.tr_text("ready"))
         self.verify_results.setPlainText(message)
-        self.verify_results.setFocus()
+        self.set_verify_view(0)
         QMessageBox.warning(self, self.tr_text("error"), message)
 
     def _verification_value(self, value, positive, negative):
@@ -1589,15 +1704,11 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         caminho, _ = QFileDialog.getOpenFileName(self, self.tr_text("select_pdf_title"), "", "PDF (*.pdf)")
         if not caminho:
             return
+        self.load_pdf_for_signing(caminho)
+
+    def load_pdf_for_signing(self, caminho):
         try:
-            if os.path.getsize(caminho) > MAX_PDF_SIZE:
-                raise ValueError(self.tr_text("pdf_too_large"))
-            if Path(caminho).suffix.lower() != ".pdf":
-                raise ValueError(self.tr_text("invalid_pdf"))
-            documento = pymupdf.open(caminho)
-            if documento.page_count < 1:
-                documento.close()
-                raise ValueError(self.tr_text("invalid_pdf"))
+            documento = self._open_valid_pdf(caminho)
             if self.pdf_document:
                 self.pdf_document.close()
             self.pdf_document = documento
@@ -2081,8 +2192,8 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.verify_total_pages = 0
         self.verify_pdf_canvas.clear()
         self.verify_pdf_canvas.setFixedSize(QSize(1, 1))
-        self.verify_preview_nav.setVisible(False)
-        self.verify_scroll_area.setVisible(False)
+        self.verify_view_controls.setVisible(False)
+        self.set_verify_view(0)
         self.retranslate_ui()
         self.update_signature_configuration()
         self.go_to_step(0)
@@ -2095,7 +2206,11 @@ QToolBar, QStatusBar { background: #F8FAFC; border: none; }
         self.resize_timer.setSingleShot(True)
         if self.stack.currentIndex() == 1 and self.pdf_document:
             self.resize_timer.timeout.connect(self.render_current_page)
-        elif self.stack.currentIndex() == 5 and self.verify_pdf_document:
+        elif (
+            self.stack.currentIndex() == 5
+            and self.verify_pdf_document
+            and self.verify_content_stack.currentIndex() == 1
+        ):
             self.resize_timer.timeout.connect(self.render_verify_page)
         else:
             return
@@ -2148,6 +2263,9 @@ def main():
     window = MainWindow()
     window.setWindowIcon(icon)
     window.show()
+    startup_files = [argument for argument in sys.argv[1:] if not argument.startswith("-")]
+    if startup_files:
+        QTimer.singleShot(0, lambda: window.open_external_pdf(startup_files[0]))
     sys.exit(app.exec())
 
 

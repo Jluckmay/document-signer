@@ -154,6 +154,10 @@ Ela utiliza **PySide6** para uma interface gráfica nativa e **PyMuPDF** para re
 - avanço automático para a próxima página ao chegar ao fim do scroll;
 - retorno automático à página anterior ao rolar para cima no início da prévia;
 - prévia multipágina também no fluxo de verificação;
+- relatório de verificação exibido por padrão, com alternância entre relatório e prévia do PDF;
+- abertura de PDFs por arrastar e soltar na janela;
+- integração com o recurso **Abrir com** do Windows;
+- escolha entre assinar e verificar quando um PDF é aberto externamente;
 - posicionamento visual da assinatura;
 - posicionamento acessível opcional por página e região predefinida;
 - toggle para exibir ou ocultar os controles de posicionamento acessível;
@@ -344,14 +348,16 @@ Pillow==11.3.0
 `desktop/requirements.txt`:
 
 ```txt
-PySide6
+PySide6==6.8.3
 PyMuPDF
 pyHanko==0.36.2
 reportlab==5.0.0
 Pillow==11.3.0
+PyInstaller==6.22.2
 ```
 
-As versões de PySide6 e PyMuPDF podem ser fixadas posteriormente após a validação da combinação escolhida para distribuição do executável.
+O mesmo arquivo também inclui `PyInstaller==6.22.2`, utilizado para gerar o
+executável standalone.
 
 ---
 
@@ -489,6 +495,15 @@ O módulo compartilhado `backend/verifier.py` é carregado automaticamente pela 
 
 A versão Desktop abre uma janela nativa e não inicia navegador ou servidor HTTP.
 
+Também é possível arrastar um único PDF para a janela. Ao receber um arquivo por
+arrastar e soltar ou pelo recurso **Abrir com** do Windows, a aplicação pergunta
+se o documento deve ser assinado ou verificado. Para usar **Abrir com**, selecione
+`AssinadorDigital.exe` como o aplicativo responsável pelo PDF.
+
+Durante a verificação, o relatório ocupa a área principal por padrão. Os botões
+**Exibir relatório** e **Exibir PDF** permitem alternar entre o resultado técnico
+e a prévia multipágina sem dividir o espaço disponível entre os dois conteúdos.
+
 ### Empacotamento como `.exe`
 
 Uma opção para distribuição no Windows é o PyInstaller em modo `--onefile`. O
@@ -496,8 +511,8 @@ comando abaixo incorpora os certificados no executável e remove automaticamente
 os arquivos temporários se a compilação terminar com sucesso:
 
 ```powershell
-pip install pyinstaller
-$buildTemp=".pyinstaller-build-AssinadorDigital"; New-Item -ItemType Directory -Path $buildTemp -Force | Out-Null; pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital --add-data "backend/certs;backend/certs" --distpath dist --workpath "$buildTemp\work" --specpath $buildTemp desktop/local.py; if ($LASTEXITCODE -eq 0) { Remove-Item -LiteralPath $buildTemp -Recurse -Force }
+py -3.11 -m pip install -r desktop/requirements.txt
+$buildTemp=Join-Path $env:TEMP "AssinadorDigital-build"; $certs=(Resolve-Path "backend/certs").Path; Remove-Item -LiteralPath $buildTemp -Recurse -Force -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Path $buildTemp -Force | Out-Null; py -3.11 -m PyInstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital --paths backend --hidden-import verifier --collect-all PySide6 --collect-all shiboken6 --add-data "$certs;certs" --distpath dist --workpath "$buildTemp\work" --specpath $buildTemp desktop/local.py; $buildExit=$LASTEXITCODE; Remove-Item -LiteralPath $buildTemp -Recurse -Force -ErrorAction SilentlyContinue; exit $buildExit
 ```
 
 O resultado final fica em `dist\AssinadorDigital.exe`. Os arquivos de apoio do
@@ -712,6 +727,10 @@ It uses **PySide6** for the native GUI and **PyMuPDF** for local PDF rendering.
 - automatic next-page transition at the bottom of the scroll;
 - automatic previous-page transition when scrolling up at the top of the preview;
 - multi-page preview in the verification flow;
+- verification report shown by default, with controls to switch between the report and PDF preview;
+- PDF opening through drag-and-drop;
+- integration with the Windows **Open with** feature;
+- choice between signing and verification when a PDF is opened externally;
 - visual placement;
 - optional accessible placement controls using page and predefined regions;
 - toggle to show/hide accessible placement controls;
@@ -895,14 +914,16 @@ Pillow==11.3.0
 `desktop/requirements.txt`:
 
 ```txt
-PySide6
+PySide6==6.8.3
 PyMuPDF
 pyHanko==0.36.2
 reportlab==5.0.0
 Pillow==11.3.0
+PyInstaller==6.22.2
 ```
 
-PySide6 and PyMuPDF can be pinned after the exact distribution/test combination has been validated.
+The same file also includes `PyInstaller==6.22.2`, which is used to build the
+standalone executable.
 
 ---
 
@@ -1025,6 +1046,15 @@ The Desktop application automatically loads the shared `backend/verifier.py` mod
 
 The Desktop version opens a native window and does not start a web browser or HTTP server.
 
+You can also drag a single PDF onto the application window. When a document is
+received through drag-and-drop or the Windows **Open with** feature, the
+application asks whether it should be signed or verified. To use **Open with**,
+select `AssinadorDigital.exe` as the application for the PDF.
+
+During verification, the report uses the main content area by default. The
+**Show report** and **Show PDF** buttons switch between the technical result and
+the multi-page preview without splitting the available space.
+
 ### Building a Windows `.exe`
 
 PyInstaller can build a Windows `--onefile` executable. The command below embeds
@@ -1032,8 +1062,8 @@ the certificates and automatically removes temporary build files after a
 successful build:
 
 ```powershell
-pip install pyinstaller
-$buildTemp=".pyinstaller-build-AssinadorDigital"; New-Item -ItemType Directory -Path $buildTemp -Force | Out-Null; pyinstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital --add-data "backend/certs;backend/certs" --distpath dist --workpath "$buildTemp\work" --specpath $buildTemp desktop/local.py; if ($LASTEXITCODE -eq 0) { Remove-Item -LiteralPath $buildTemp -Recurse -Force }
+py -3.11 -m pip install -r desktop/requirements.txt
+$buildTemp=Join-Path $env:TEMP "AssinadorDigital-build"; $certs=(Resolve-Path "backend/certs").Path; Remove-Item -LiteralPath $buildTemp -Recurse -Force -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Path $buildTemp -Force | Out-Null; py -3.11 -m PyInstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital --paths backend --hidden-import verifier --collect-all PySide6 --collect-all shiboken6 --add-data "$certs;certs" --distpath dist --workpath "$buildTemp\work" --specpath $buildTemp desktop/local.py; $buildExit=$LASTEXITCODE; Remove-Item -LiteralPath $buildTemp -Recurse -Force -ErrorAction SilentlyContinue; exit $buildExit
 ```
 
 The resulting executable is written to `dist\AssinadorDigital.exe`. Support
