@@ -17,7 +17,163 @@ on:
         default: 'v1.1.0'
 
 jobs:
-  build-and-release:
+  build-windows:
+    runs-on: windows-latest
+    outputs:
+      tag: ${{ steps.determine-tag.outputs.tag }}
+      version: ${{ steps.determine-tag.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install desktop dependencies
+        run: pip install -r desktop/requirements.txt
+
+      - name: Build desktop executable (PyInstaller)
+        shell: pwsh
+        run: |
+          $buildTemp = Join-Path $env:TEMP "AssinadorDigital-build"
+          $certs = (Resolve-Path "backend/certs").Path
+          Remove-Item -LiteralPath $buildTemp -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $buildTemp -Force | Out-Null
+          py -3.11 -m PyInstaller --clean --noconfirm --onefile --windowed --name AssinadorDigital --paths backend --hidden-import verifier --collect-all PySide6 --collect-all shiboken6 --add-data "$certs;certs" --distpath dist --workpath "$buildTemp\work" --specpath $buildTemp desktop/local.py
+          $buildExit = $LASTEXITCODE
+          Remove-Item -LiteralPath $buildTemp -Recurse -Force -ErrorAction SilentlyContinue
+          if ($buildExit -ne 0) { throw "A compilação falhou com código $buildExit / Build failed with code $buildExit" }
+
+      - name: Generate SHA-256 checksum (Windows)
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "dist/AssinadorDigital.exe").Path
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -LiteralPath "dist/SHA256-windows.txt" -Value "$hash  AssinadorDigital.exe" -Encoding ascii
+          Write-Host "SHA-256 (Windows): $hash"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: assinadordigital-windows
+          path: |
+            dist/AssinadorDigital.exe
+            dist/SHA256-windows.txt
+
+      - name: Determine release tag and version
+        id: determine-tag
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          if (-not $tag) { throw "Não foi possível determinar a tag / Could not determine tag" }
+          $version = $tag.TrimStart('v')
+          echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
+  build-linux:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.determine-tag.outputs.tag }}
+      version: ${{ steps.determine-tag.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install desktop dependencies
+        run: pip install -r desktop/requirements.txt
+
+      - name: Build Linux executable
+        run: bash release.sh
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: assinadordigital-linux
+          path: |
+            dist/AssinadorDigital
+            dist/SHA256-linux.txt
+
+      - name: Determine release tag and version
+        id: determine-tag
+        run: |
+          TAG="${{ github.event.inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          if [ -z "$TAG" ]; then echo "Não foi possível determinar a tag / Could not determine tag" >&2; exit 1; fi
+          VERSION="${TAG#v}"
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: assinadordigital-windows
+          path: dist/windows
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: assinadordigital-linux
+          path: dist/linux
+
+      - name: Prepare combined SHA-256
+        run: |
+          cat dist/windows/SHA256-windows.txt > dist/SHA256.txt
+          echo "" >> dist/SHA256.txt
+          cat dist/linux/SHA256-linux.txt >> dist/SHA256.txt
+          chmod +x dist/linux/AssinadorDigital
+
+      - name: Determine release tag and version
+        id: determine-tag
+        run: |
+          TAG="${{ needs.build-windows.outputs.tag || needs.build-linux.outputs.tag || github.event.inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          if [ -z "$TAG" ]; then echo "Não foi possível determinar a tag / Could not determine tag" >&2; exit 1; fi
+          VERSION="${TAG#v}"
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Prepare bilingual release notes
+        run: |
+          VERSION="${{ steps.determine-tag.outputs.version }}"
+          sed "s/{{VERSION}}/$VERSION/g" .github/release-notes.md > dist/release-notes.md
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.determine-tag.outputs.tag }}"
+          NOTES_FILE="dist/release-notes.md"
+          
+          if gh release view "$TAG" --json id -q '.id' 2>/dev/null; then
+            echo "Atualizando release existente: $TAG / Updating existing release: $TAG"
+            gh release edit "$TAG" --notes-file "$NOTES_FILE"
+          else
+            echo "Criando nova release: $TAG / Creating new release: $TAG"
+            gh release create "$TAG" --notes-file "$NOTES_FILE" --title "Assinador Digital PAdES v${{ steps.determine-tag.outputs.version }} | Digital Signer PAdES v${{ steps.determine-tag.outputs.version }}"
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.determine-tag.outputs.tag }}"
+          gh release upload "$TAG" \
+            dist/windows/AssinadorDigital.exe \
+            dist/linux/AssinadorDigital \
+            dist/SHA256.txt \
+            --clobber
     runs-on: windows-latest
     steps:
       - name: Checkout repository

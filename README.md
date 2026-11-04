@@ -252,6 +252,29 @@ Mesmo localmente são mantidos:
 
 ---
 
+## 📥 Downloads
+
+Baixe a versão Desktop empacotada:
+
+| Plataforma | Arquivo | Link |
+|------------|---------|------|
+| Windows | `AssinadorDigital.exe` | [Baixar para Windows](https://github.com/Jluckmay/document-signer/releases/latest/download/AssinadorDigital.exe) |
+| Linux | `AssinadorDigital` | [Baixar para Linux](https://github.com/Jluckmay/document-signer/releases/latest/download/AssinadorDigital) |
+
+Cada release inclui também o arquivo `SHA256.txt` com os checksums para verificação de integridade.
+
+```powershell
+# Verificação no Windows
+Get-FileHash AssinadorDigital.exe -Algorithm SHA256
+```
+
+```bash
+# Verificação no Linux
+sha256sum -c SHA256.txt
+```
+
+---
+
 ## 🎓 Certificado Pessoal ICPEdu
 
 O **[ICPEdu - Certificado Pessoal](https://pessoal.icpedu.rnp.br/)** é um serviço disponibilizado pela Rede Nacional de Ensino e Pesquisa (RNP) para usuários elegíveis de instituições participantes.
@@ -764,6 +787,29 @@ Position: Top left
 This complements click-based placement and improves keyboard and assistive-technology use.
 
 > Accessibility should also be tested with real screen readers such as NVDA on Windows. Native Qt widgets and accessible names/descriptions provide a good foundation but do not replace practical testing.
+
+---
+
+## 📥 Downloads
+
+Download the packaged Desktop version:
+
+| Platform | File | Link |
+|----------|------|------|
+| Windows | `AssinadorDigital.exe` | [Download for Windows](https://github.com/Jluckmay/document-signer/releases/latest/download/AssinadorDigital.exe) |
+| Linux | `AssinadorDigital` | [Download for Linux](https://github.com/Jluckmay/document-signer/releases/latest/download/AssinadorDigital) |
+
+Each release also includes the `SHA256.txt` file with checksums for integrity verification.
+
+```powershell
+# Verification on Windows
+Get-FileHash AssinadorDigital.exe -Algorithm SHA256
+```
+
+```bash
+# Verification on Linux
+sha256sum -c SHA256.txt
+```
 
 ---
 

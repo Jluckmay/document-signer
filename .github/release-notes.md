@@ -10,8 +10,9 @@ Release do **Assinador Digital PAdES**, aplicativo de assinatura criptográfica 
 
 ### O que está incluído
 
-- `AssinadorDigital.exe` — versão Desktop empacotada (PyInstaller, PySide6, pyHanko)
-- `SHA256.txt` — checksum SHA-256 do executável para verificação de integridade
+- `AssinadorDigital.exe` — versão Desktop empacotada para Windows (PyInstaller, PySide6, pyHanko)
+- `AssinadorDigital` — versão Desktop empacotada para Linux (PyInstaller, PySide6, pyHanko)
+- `SHA256.txt` — checksums SHA-256 dos executáveis para verificação de integridade
 
 ### Versões disponíveis
 
@@ -30,7 +31,13 @@ Release do **Assinador Digital PAdES**, aplicativo de assinatura criptográfica 
 ### Verificação de integridade
 
 ```powershell
+# Windows
 Get-FileHash AssinadorDigital.exe -Algorithm SHA256
+```
+
+```bash
+# Linux
+sha256sum -c SHA256.txt
 ```
 
 Compare o resultado com o conteúdo de `SHA256.txt`.
@@ -45,8 +52,9 @@ Release of **Digital Signer PAdES**, a cryptographic PDF signing application in 
 
 ### What is included
 
-- `AssinadorDigital.exe` — packaged Desktop version (PyInstaller, PySide6, pyHanko)
-- `SHA256.txt` — SHA-256 checksum of the executable for integrity verification
+- `AssinadorDigital.exe` — packaged Desktop version for Windows (PyInstaller, PySide6, pyHanko)
+- `AssinadorDigital` — packaged Desktop version for Linux (PyInstaller, PySide6, pyHanko)
+- `SHA256.txt` — SHA-256 checksums of the executables for integrity verification
 
 ### Available versions
 
@@ -65,7 +73,13 @@ Release of **Digital Signer PAdES**, a cryptographic PDF signing application in 
 ### Integrity verification
 
 ```powershell
+# Windows
 Get-FileHash AssinadorDigital.exe -Algorithm SHA256
+```
+
+```bash
+# Linux
+sha256sum -c SHA256.txt
 ```
 
 Compare the result with the contents of `SHA256.txt`.
