@@ -1,17 +1,24 @@
 name: Release
 
+permissions:
+  contents: write
+
 on:
   release:
     types: [published]
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag da release (ex: v1.1.0)'
+        required: true
+        default: 'v1.1.0'
 
 jobs:
   build-and-release:
     runs-on: windows-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,8 +54,8 @@ jobs:
       - name: Determine release tag and version
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          if (-not $tag) { $tag = "${{ github.event.release.tag_name }}" }
+          $tag = "${{ github.event.inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          if (-not $tag) { throw "Não foi possível determinar a tag da release / Could not determine release tag" }
           $version = $tag.TrimStart('v')
           echo "TAG=$tag" >> $env:GITHUB_ENV
           echo "VERSION=$version" >> $env:GITHUB_ENV
